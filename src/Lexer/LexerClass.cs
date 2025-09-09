@@ -96,8 +96,8 @@ public class LexerClass
 
     private Token ParseIdentifierOrKeyword(int startLine, int startColumn)
     {
-        // TODO: ADD RANGE AFTER IDENTIFIER!!!
         string lexeme = "";
+        bool hasDot = false;
 
         while (_currentChar != '\0' && (char.IsLetterOrDigit(_currentChar) || _currentChar == '_'))
         {
@@ -105,7 +105,25 @@ public class LexerClass
             Move();
         }
 
+        while (_currentChar == '.')
+        {
+            if (LookAhead() == '.') break; // range
+            lexeme += _currentChar;
+            Move();
+            while (_currentChar != '\0' && (char.IsLetterOrDigit(_currentChar) || _currentChar == '_'))
+            {
+                lexeme += _currentChar;
+                Move();
+            }
+            hasDot = true;
+        }
+
         Span span = new Span(startLine, startColumn, _column - 1);
+
+        if (hasDot)
+        {
+            return new RecordAccessToken(lexeme, span);
+        }
 
         if (TokenDefinitions.Keywords.TryGetValue(lexeme, out TokenType keywordType))
         {
