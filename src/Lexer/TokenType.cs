@@ -26,6 +26,7 @@ public enum TokenType
     tkLoop,
     tkReverse,
     tkRecord,
+    tkRecordAccess,
     tkRoutine,
     tkReturn,
     tkArray,

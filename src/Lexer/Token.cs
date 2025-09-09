@@ -40,7 +40,14 @@ public class BooleanToken(string lexeme, bool value, Span span) : Token(TokenTyp
 {
     public bool Value { get; } = value;
 }
+public class RecordAccessToken(string lexeme, Span span) : Token(TokenType.tkRecordAccess, lexeme, span)
+{
+    public string[] FieldPath { get; } = lexeme.Split('.');
 
+    public string RecordName => FieldPath[0];
+    public string FieldName => FieldPath[^1];
+    public bool IsNested => FieldPath.Length > 2;
+}
 public class SimpleToken(TokenType type, string lexeme, Span span) : Token(type, lexeme, span)
 {
 }
