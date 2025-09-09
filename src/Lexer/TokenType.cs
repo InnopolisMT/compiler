@@ -22,6 +22,7 @@ public enum TokenType
     tkWhile,
     tkFor,
     tkIn,
+    tkRange,
     tkLoop,
     tkReverse,
     tkRecord,
