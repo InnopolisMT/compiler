@@ -73,7 +73,7 @@ public class LexerClass
             Move();
         }
 
-        Span span = new Span(startLine, startColumn, _column - 1);
+        Span span = new(startLine, startColumn, _column - 1);
 
         if (hasError)
         {
@@ -118,7 +118,7 @@ public class LexerClass
             hasDot = true;
         }
 
-        Span span = new Span(startLine, startColumn, _column - 1);
+        Span span = new(startLine, startColumn, _column - 1);
 
         if (hasDot)
         {
@@ -142,7 +142,60 @@ public class LexerClass
             return new IdentifierToken(lexeme, span);
         }
     }
+    private Token ReadOperator(int startLine, int startColumn)
+    {
+        if (_currentChar == '.' && LookAhead() == '.')
+        {
+            Move();
+            Move();
+            Span rangeSpan = new(startLine, startColumn, _column - 1);
+            return new SimpleToken(TokenType.tkRange, "..", rangeSpan);
+        }
 
+        if (_currentChar == ':' && LookAhead() == '=')
+        {
+            Move();
+            Move();
+            Span assignRange = new(startLine, startColumn, _column - 1);
+            return new SimpleToken(TokenType.tkAssign, ":=", assignRange);
+        }
+
+        if (_currentChar == '/' && LookAhead() == '=')
+        {
+            Move();
+            Move();
+            Span notEqualSpan = new(startLine, startColumn, _column - 1);
+            return new SimpleToken(TokenType.tkNotEqual, "/=", notEqualSpan);
+        }
+
+        if (_currentChar == '<' && LookAhead() == '=')
+        {
+            Move();
+            Move();
+            Span lessOrEqualSpan = new(startLine, startColumn, _column - 1);
+            return new SimpleToken(TokenType.tkLessThanOrEqual, "<=", lessOrEqualSpan);
+        }
+
+        if (_currentChar == '>' && LookAhead() == '=')
+        {
+            Move();
+            Move();
+            Span greaterOrEqualSpan = new(startLine, startColumn, _column - 1);
+            return new SimpleToken(TokenType.tkGreaterThanOrEqual, ">=", greaterOrEqualSpan);
+        }
+
+        string operatorLexeme = _currentChar.ToString();
+        if (TokenDefinitions.Operators.TryGetValue(operatorLexeme, out TokenType operatorType))
+        {
+            Span operatorSpan = new(startLine, startColumn, _column);
+            Move();
+            return new SimpleToken(operatorType, operatorLexeme, operatorSpan);
+        }
+
+        Span span = new(startLine, startColumn, _column);
+        Move();
+        return new SimpleToken(TokenType.tkInvalid, operatorLexeme, span);
+    }
     public Token NextToken()
     {
         while (_currentChar != '\0')
@@ -163,14 +216,9 @@ public class LexerClass
                 return ParseIdentifierOrKeyword(_line, _column);
             }
 
-            if (_currentChar == '.' && LookAhead() == '.')
+            if (TokenDefinitions.Operators.ContainsKey(_currentChar.ToString()))
             {
-                int startLine = _line;
-                int startColumn = _column;
-                Move();
-                Move();
-                Span span = new Span(startLine, startColumn, _column);
-                return new SimpleToken(TokenType.tkRange, "..", span);
+                return ReadOperator(_line, _column);
             }
         }
         return new SimpleToken(TokenType.tkEOF, "", new Span(_line, _column, _column));
