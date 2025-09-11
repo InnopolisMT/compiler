@@ -200,6 +200,14 @@ public class LexerClass
     {
         while (_currentChar != '\0')
         {
+            if (_currentChar == '\n')
+            {  
+                int oldColumn = _column;
+                _column = 1;
+                _position++;
+                Move();
+                return new SimpleToken(TokenType.tkEOL, "\\n", new Span(_line++, oldColumn, oldColumn));
+            }
             if (char.IsWhiteSpace(_currentChar))
             {
                 SkipWhitespace();
