@@ -6,7 +6,7 @@ namespace Compiler
     {
         static void Main(string[] args)
         {
-            string input = File.ReadAllText("/Users/user/Documents/BSUIR/Innopolis/programming/ProjectI/compiler/src/test.imperative");
+            string input = File.ReadAllText("./test.imperative");
 
             var lexer = new LexerClass(input);
             var tokens = lexer.NextToken();
