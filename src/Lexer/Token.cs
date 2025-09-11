@@ -15,7 +15,7 @@ public abstract class Token(TokenType type, string lexeme, Span span)
     public Span Span { get; } = span;
     public string Lexeme { get; } = lexeme;
 
-    public override string ToString() => $"{Type}: {Lexeme}";
+    public override string ToString() => $"{Type}: {Lexeme}, span: {Span}";
 }
 
 // Токен для идентификаторов
