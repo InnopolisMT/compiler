@@ -201,7 +201,7 @@ public class LexerClass
         while (_currentChar != '\0')
         {
             if (_currentChar == '\n')
-            {  
+            {
                 int oldColumn = _column;
                 _column = 1;
                 Move();
@@ -227,6 +227,11 @@ public class LexerClass
             {
                 return ReadOperator(_line, _column);
             }
+
+            Span span = new(_line, _column, _column);
+            string invalidLexeme = _currentChar.ToString();
+            Move();
+            return new SimpleToken(TokenType.tkInvalid, invalidLexeme, span);
         }
         return new SimpleToken(TokenType.tkEOF, "", new Span(_line, _column, _column));
     }
