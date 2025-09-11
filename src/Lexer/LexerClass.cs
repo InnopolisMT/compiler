@@ -204,7 +204,6 @@ public class LexerClass
             {  
                 int oldColumn = _column;
                 _column = 1;
-                _position++;
                 Move();
                 return new SimpleToken(TokenType.tkEOL, "\\n", new Span(_line++, oldColumn, oldColumn));
             }
