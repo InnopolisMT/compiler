@@ -1,21 +1,29 @@
+4f
+
 type Address is record
     var streetCode : integer
     var number : integer
 end
+
 type Person is record
     var age : integer
     var addr : Address
-
+end
 
 type IntArray is array[5] integer
-var arr : IntArray is [1, 2, 3, 4, 5]
 
-person.name:=2351.11
-person.age:=30
+routine main ()
+    var arr : IntArray is [1, 2, 3, 4, 5]
 
-for i in person.age..50 loop
-    print i
-end
-if ( person.age = 5 ) then
-    print 5
+    person.name:=2351.1110.133
+    person.age:=300000
+    for i in person.age .. 50 loop
+        print i
+    end
+    if (person.age = 5) then
+        print 5
+    end
+    for i in 1 .. 5 loop
+        print arr[i]
+    end
 end
