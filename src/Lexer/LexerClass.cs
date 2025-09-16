@@ -19,7 +19,7 @@ public class LexerClass
 
     private char LookAhead()
     {
-        if (_position > _source.Length - 2)
+        if (_position > _source.Length-2)
         {
             return '\0';
         }
@@ -125,76 +125,47 @@ public class LexerClass
             return new RecordAccessToken(lexeme, span);
         }
 
-        if (TokenDefinitions.Keywords.TryGetValue(lexeme, out TokenType keywordType))
-        {
-            if (keywordType == TokenType.tkBoolLiteral)
-            {
-                bool value = lexeme == "true";
-                return new BooleanToken(lexeme, value, span);
-            }
-            else
-            {
-                return new SimpleToken(keywordType, lexeme, span);
-            }
-        }
-        else
-        {
-            return new IdentifierToken(lexeme, span);
-        }
+if (TokenDefinitions.Keywords.TryGetValue(lexeme, out TokenType keywordType))
+{
+    if (keywordType == TokenType.tkBoolLiteral)
+    {
+        bool value = lexeme == "true";
+        return new BooleanToken(lexeme, value, span);
+    }
+    else
+    {
+        return new SimpleToken(keywordType, lexeme, span);
+    }
+}
+else
+{
+    return new IdentifierToken(lexeme, span);
+}
     }
     private Token ReadOperator(int startLine, int startColumn)
     {
-        if (_currentChar == '.' && LookAhead() == '.')
-        {
-            Move();
-            Move();
-            Span rangeSpan = new(startLine, startColumn, _column - 1);
-            return new SimpleToken(TokenType.tkRange, "..", rangeSpan);
-        }
-
-        if (_currentChar == ':' && LookAhead() == '=')
-        {
-            Move();
-            Move();
-            Span assignRange = new(startLine, startColumn, _column - 1);
-            return new SimpleToken(TokenType.tkAssign, ":=", assignRange);
-        }
-
-        if (_currentChar == '/' && LookAhead() == '=')
-        {
-            Move();
-            Move();
-            Span notEqualSpan = new(startLine, startColumn, _column - 1);
-            return new SimpleToken(TokenType.tkNotEqual, "/=", notEqualSpan);
-        }
-
-        if (_currentChar == '<' && LookAhead() == '=')
-        {
-            Move();
-            Move();
-            Span lessOrEqualSpan = new(startLine, startColumn, _column - 1);
-            return new SimpleToken(TokenType.tkLessThanOrEqual, "<=", lessOrEqualSpan);
-        }
-
-        if (_currentChar == '>' && LookAhead() == '=')
-        {
-            Move();
-            Move();
-            Span greaterOrEqualSpan = new(startLine, startColumn, _column - 1);
-            return new SimpleToken(TokenType.tkGreaterThanOrEqual, ">=", greaterOrEqualSpan);
-        }
-
         string operatorLexeme = _currentChar.ToString();
-        if (TokenDefinitions.Operators.TryGetValue(operatorLexeme, out TokenType operatorType))
+        if ((LookAhead() == '=') || (LookAhead() == '.'))
         {
-            Span operatorSpan = new(startLine, startColumn, _column);
-            Move();
-            return new SimpleToken(operatorType, operatorLexeme, operatorSpan);
+            operatorLexeme += LookAhead().ToString();
+            if (TokenDefinitions.Operators.TryGetValue(operatorLexeme, out TokenType operType))
+            {
+                Span operatorSpan = new(startLine, startColumn, _column);
+                Move();
+                Move();
+                return new SimpleToken(operType, operatorLexeme, operatorSpan);
+            }
         }
+            if (TokenDefinitions.Operators.TryGetValue(_currentChar.ToString(), out TokenType operatorType))
+            {
+                Span operatorSpan = new(startLine, startColumn, _column);
+                Move();
+                return new SimpleToken(operatorType, operatorLexeme, operatorSpan);
+            }
 
         Span span = new(startLine, startColumn, _column);
         Move();
-        return new SimpleToken(TokenType.tkInvalid, operatorLexeme, span);
+        return new SimpleToken(TokenType.tkInvalid, _currentChar.ToString(), span);
     }
     public Token NextToken()
     {
@@ -223,7 +194,7 @@ public class LexerClass
                 return ParseIdentifierOrKeyword(_line, _column);
             }
 
-            if (TokenDefinitions.Operators.ContainsKey(_currentChar.ToString()))
+            if (TokenDefinitions.Operst.Contains(_currentChar))
             {
                 return ReadOperator(_line, _column);
             }
