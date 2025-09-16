@@ -19,7 +19,7 @@ public class LexerClass
 
     private char LookAhead()
     {
-        if (_position + 1 > _source.Length)
+        if (_position > _source.Length - 2)
         {
             return '\0';
         }

@@ -18,19 +18,16 @@ public abstract class Token(TokenType type, string lexeme, Span span)
     public override string ToString() => $"{Type}: {Lexeme}, \tspan: {Span}";
 }
 
-// Токен для идентификаторов
 public class IdentifierToken(string lexeme, Span span) : Token(TokenType.tkIdentifier, lexeme, span)
 {
     public string Name => Lexeme;
 }
 
-// Токен для целых чисел
 public class IntegerToken(string lexeme, long value, Span span) : Token(TokenType.tkIntegerLiteral, lexeme, span)
 {
     public long Value { get; } = value;
 }
 
-// Токен для вещественных чисел
 public class RealToken(string lexeme, double value, Span span) : Token(TokenType.tkRealLiteral, lexeme, span)
 {
     public double Value { get; } = value;
