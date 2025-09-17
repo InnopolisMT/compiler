@@ -194,7 +194,7 @@ else
                 return ParseIdentifierOrKeyword(_line, _column);
             }
 
-            if (TokenDefinitions.Operst.Contains(_currentChar))
+            if (TokenDefinitions.Operators.TryGetValue(_currentChar.ToString(), out TokenType operatorType))
             {
                 return ReadOperator(_line, _column);
             }
