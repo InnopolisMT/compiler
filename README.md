@@ -1,8 +1,10 @@
 # compiler
 
+## Commands
+- Run tests (from /src): ```dotnet test ../tests/tests.csproj```
+- Run project (from /src): ```dotnet run```
+
 ## To-do's
-- Add new-line token '\n'
+- Fix invalid words (ex. 4fa should be one tkInvalid token, now is 3 different tkInvalid tokens)
 
 ## Questions
-
-- Is field in record shoud be represented in token as identifier or field?
