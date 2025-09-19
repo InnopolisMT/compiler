@@ -1,0 +1,2 @@
+for i in 1 .. person.age loop
+for j in person.addr.streetCode .. 100 loop

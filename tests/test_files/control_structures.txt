@@ -1,0 +1,6 @@
+if (x = 5) then
+    print 5
+end
+
+for i in 1 .. 5 loop
+end

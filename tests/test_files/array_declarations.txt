@@ -1,0 +1,1 @@
+type IntArray is array[5] integer

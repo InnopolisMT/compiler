@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace Compiler.Lexer;
 
 public class LexerClass
@@ -82,14 +84,14 @@ public class LexerClass
 
         if (isReal)
         {
-            return double.TryParse(lexeme, out double value)
+            return double.TryParse(lexeme, NumberStyles.Float, CultureInfo.InvariantCulture, out double value)
                 ? new RealToken(lexeme, value, span)
                 : new SimpleToken(TokenType.tkInvalid, lexeme, span);
         }
         else
         {
-            return long.TryParse(lexeme, out long value)
-                ? new IntegerToken(lexeme, value, span) 
+            return long.TryParse(lexeme, NumberStyles.Integer, CultureInfo.InvariantCulture, out long value)
+                ? new IntegerToken(lexeme, value, span)
                 : new SimpleToken(TokenType.tkInvalid, lexeme, span);
         }
     }
@@ -144,48 +146,19 @@ public class LexerClass
     }
     private Token ReadOperator(int startLine, int startColumn)
     {
-        if (_currentChar == '.' && LookAhead() == '.')
-        {
-            Move();
-            Move();
-            Span rangeSpan = new(startLine, startColumn, _column - 1);
-            return new SimpleToken(TokenType.tkRange, "..", rangeSpan);
-        }
-
-        if (_currentChar == ':' && LookAhead() == '=')
-        {
-            Move();
-            Move();
-            Span assignRange = new(startLine, startColumn, _column - 1);
-            return new SimpleToken(TokenType.tkAssign, ":=", assignRange);
-        }
-
-        if (_currentChar == '/' && LookAhead() == '=')
-        {
-            Move();
-            Move();
-            Span notEqualSpan = new(startLine, startColumn, _column - 1);
-            return new SimpleToken(TokenType.tkNotEqual, "/=", notEqualSpan);
-        }
-
-        if (_currentChar == '<' && LookAhead() == '=')
-        {
-            Move();
-            Move();
-            Span lessOrEqualSpan = new(startLine, startColumn, _column - 1);
-            return new SimpleToken(TokenType.tkLessThanOrEqual, "<=", lessOrEqualSpan);
-        }
-
-        if (_currentChar == '>' && LookAhead() == '=')
-        {
-            Move();
-            Move();
-            Span greaterOrEqualSpan = new(startLine, startColumn, _column - 1);
-            return new SimpleToken(TokenType.tkGreaterThanOrEqual, ">=", greaterOrEqualSpan);
-        }
-
         string operatorLexeme = _currentChar.ToString();
-        if (TokenDefinitions.Operators.TryGetValue(operatorLexeme, out TokenType operatorType))
+        if ((LookAhead() == '=') || (LookAhead() == '.'))
+        {
+            operatorLexeme += LookAhead().ToString();
+            if (TokenDefinitions.Operators.TryGetValue(operatorLexeme, out TokenType operType))
+            {
+                Span operatorSpan = new(startLine, startColumn, _column + 1);
+                Move();
+                Move();
+                return new SimpleToken(operType, operatorLexeme, operatorSpan);
+            }
+        }
+        if (TokenDefinitions.Operators.TryGetValue(_currentChar.ToString(), out TokenType operatorType))
         {
             Span operatorSpan = new(startLine, startColumn, _column);
             Move();
@@ -194,8 +167,9 @@ public class LexerClass
 
         Span span = new(startLine, startColumn, _column);
         Move();
-        return new SimpleToken(TokenType.tkInvalid, operatorLexeme, span);
+        return new SimpleToken(TokenType.tkInvalid, _currentChar.ToString(), span);
     }
+
     public Token NextToken()
     {
         while (_currentChar != '\0')
@@ -205,7 +179,7 @@ public class LexerClass
                 int oldColumn = _column;
                 _column = 1;
                 Move();
-                return new SimpleToken(TokenType.tkEOL, "\\n", new Span(_line++, oldColumn, oldColumn));
+                return new SimpleToken(TokenType.tkEOL, "\\n", new Span(_line - 1, oldColumn, oldColumn));
             }
             if (char.IsWhiteSpace(_currentChar))
             {

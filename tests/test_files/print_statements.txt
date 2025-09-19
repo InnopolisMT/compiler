@@ -1,0 +1,3 @@
+print x
+print person.name
+print arr[0]

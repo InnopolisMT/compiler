@@ -13,8 +13,8 @@ type IntArray is array[5] integer
 routine main ()
     var arr : IntArray is [1, 2, 3, 4, 5]
 
-    person.name:=2351.1110.133
-    person.age:=300000
+    person.name := 2351.1110.133
+    person.age := 300000
     for i in person.age .. 50 loop
         print i
     end
