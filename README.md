@@ -2,6 +2,33 @@
 
 An imperative programming language compiler developed as an educational project.
 
+## Features
+
+- ✅ **Lexical Analysis** - Hand-written lexer for tokenization
+- ✅ **Syntax Analysis** - GPPG-based parser with custom lexer integration
+- ✅ **AST Generation** - Full Abstract Syntax Tree construction
+- 🔄 Semantic Analysis (TODO)
+- 🔄 Code Generation (TODO)
+
+## Architecture
+
+The compiler is structured in phases:
+
+1. **Lexer** (`src/Compiler/Lexer/`) - Hand-written lexical analyzer
+   - `LexerClass.cs` - Main lexer implementation
+   - `Token.cs` - Token classes
+   - `TokenType.cs` - Token type definitions
+   - `TokenDefinitions.cs` - Keywords and operators
+
+2. **Parser** (`src/Compiler/Parser/`) - GPPG-based syntax analyzer
+   - `Grammar.y` - Grammar specification
+   - `LexerAdapter.cs` - Bridge between custom lexer and GPPG
+   - `ParserFacade.cs` - Public API for parsing
+   - `Generated/` - Auto-generated parser code
+
+3. **AST** (`src/Compiler/AST/`) - Abstract Syntax Tree
+   - `AstNodes.cs` - Node definitions for all language constructs
+
 ## Makefile Commands
 
 The project includes a Makefile with convenient commands for common tasks.
@@ -20,7 +47,17 @@ make clean         # Clean build artifacts
 
 ```bash
 # Compile a specific file
-make run-file FILE=examples/simple.imperative
+make run-file FILE=examples/simple_valid.imperative
+
+# Compile with detailed AST output (debug mode) - two ways:
+make run-file FILE=examples/test_valid.imperative DEBUG=1
+make run-debug FILE=examples/test_valid.imperative
+
+# Run debug mode with default file
+make run-debug
+
+# Run lexer only
+make run-lexer FILE=examples/test.imperative
 
 # Show compiler help
 make run-help
@@ -56,8 +93,14 @@ If you prefer using dotnet CLI directly:
 # Build and run
 dotnet build Compiler.sln
 dotnet run --project src/Compiler/Compiler.csproj
-dotnet run --project src/Compiler/Compiler.csproj -- examples/simple.imperative
+dotnet run --project src/Compiler/Compiler.csproj -- examples/simple_valid.imperative
 dotnet run --project src/Compiler/Compiler.csproj -- --help
+
+# Run with detailed AST output (debug mode)
+dotnet run --project src/Compiler/Compiler.csproj -- examples/test_valid.imperative --debug
+
+# Run lexer only
+dotnet run --project src/Compiler/Compiler.csproj -- --lexer-only examples/test.imperative
 
 # Tests
 dotnet test Compiler.sln
@@ -70,23 +113,100 @@ dotnet clean Compiler.sln
 ## Examples
 
 The `examples/` directory contains sample programs:
-- `test.imperative` - Full example with types, arrays, and loops
-- `simple.imperative` - Simple example with variables
+- `simple_valid.imperative` - Simple example with variables and a routine
+- `test_valid.imperative` - Complex example with types, arrays, loops, and conditionals
+- `complex_expressions.imperative` - Advanced example with complex expressions and nested operations
+- `quick_demo.imperative` - Quick demo with loops and conditions
 
 **Note:** File paths are relative to the current working directory.  
 Run commands from the project root for best results.
 
+## Output Modes
+
+### Normal Mode
+Shows compact AST summary:
+```bash
+dotnet run --project src/Compiler/Compiler.csproj -- examples/simple_valid.imperative
+```
+
+Output:
+```
+AST STRUCTURE:
+Variable: x : integer = <expr>
+Variable: y : real = <expr>
+Routine: main(0 params)
+  Body: 0 decls, 3 stmts
+```
+
+### Debug Mode (Detailed AST Tree)
+Shows complete AST tree with all nodes and properties:
+```bash
+dotnet run --project src/Compiler/Compiler.csproj -- examples/complex_expressions.imperative --debug
+```
+
+Output shows full tree structure including:
+- All expression details (operators, operands, values)
+- Complete statement structure
+- Type information
+- Function parameters
+- Record fields
+- Array elements
+
+### Lexer Only Mode
+Shows only tokens without parsing:
+```bash
+dotnet run --project src/Compiler/Compiler.csproj -- --lexer-only examples/test.imperative
+```
+
+## Language Features
+
+The imperative language supports:
+
+- **Primitive Types**: `integer`, `real`, `boolean`
+- **User-Defined Types**: Records and Arrays
+- **Variables**: With optional initialization
+- **Routines**: Functions with parameters and optional return type
+- **Control Flow**: `if-then-else`, `while`, `for-in-range`
+- **Expressions**: Arithmetic, logical, comparison operators
+- **I/O**: `print` statement
+
+### Example Program
+
+```
+type IntArray is array[5] integer
+
+var x : integer is 42
+var arr : IntArray is [1, 2, 3, 4, 5]
+
+routine main()
+    for i in 1 .. 5 loop
+        print arr[i]
+    end
+    
+    if (x > 10) then
+        print x
+    end
+end
+```
+
+## Parser Integration
+
+The parser is built using **GPPG** (Gardens Point Parser Generator) version 1.5.3.1. The integration includes:
+
+- Custom lexer adapter that bridges the hand-written lexer to GPPG
+- Complete grammar specification in `Grammar.y`
+- Automatic parser generation during build
+- Full AST construction with semantic actions
+
+For more details on the parser integration, see `docs/parser_integration_status.md`.
+
 ## To-do's
 
-- [ ] Implement Parser
+- [x] Implement Lexer
+- [x] Implement Parser
 - [ ] Implement Semantic Analyzer
 - [ ] Implement Code Generator
 - [ ] Add support for comments
-
-## Questions
-
-- Should we add support for multi-line comments?
-- What optimizations should be applied at the lexer level?
 
 ## Requirements
 

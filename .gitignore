@@ -173,3 +173,7 @@ PublishScripts/
 
 # Node.js (if needed for any tooling)
 node_modules/
+
+# GPPG Generated Parser Files
+src/Compiler/Parser/Generated/
+src/Compiler/ShiftReduceParserCode.cs

@@ -11,7 +11,9 @@ help:
 	@echo "  make test           - Run all tests"
 	@echo "  make test-verbose   - Run tests with detailed output"
 	@echo "  make run            - Run the compiler (default example)"
-	@echo "  make run-file       - Run with specific file (FILE=path)"
+	@echo "  make run-file       - Run with specific file (FILE=path, DEBUG=1 for detailed AST)"
+	@echo "  make run-debug      - Run with debug mode (FILE=path)"
+	@echo "  make run-lexer      - Run lexer only (FILE=path)"
 	@echo "  make run-example    - Run compiler with example file"
 	@echo "  make run-help       - Show compiler help"
 	@echo "  make watch          - Watch and rebuild on changes"
@@ -65,15 +67,41 @@ run:
 	@echo "🚀 Running compiler..."
 	dotnet run --project src/Compiler/Compiler.csproj
 
-# Run with specific file (usage: make run-file FILE=path/to/file.imperative)
+# Run with specific file (usage: make run-file FILE=path/to/file.imperative DEBUG=1)
 run-file:
 	@if [ -z "$(FILE)" ]; then \
 		echo "❌ Error: FILE parameter is required"; \
 		echo "Usage: make run-file FILE=path/to/file.imperative"; \
+		echo "       make run-file FILE=path/to/file.imperative DEBUG=1  # Debug mode"; \
 		exit 1; \
 	fi
-	@echo "🚀 Running compiler with file: $(FILE)"
-	dotnet run --project src/Compiler/Compiler.csproj -- "$(FILE)"
+	@if [ "$(DEBUG)" = "1" ]; then \
+		echo "🚀 Running compiler with file (DEBUG mode): $(FILE)"; \
+		dotnet run --project src/Compiler/Compiler.csproj -- "$(FILE)" --debug; \
+	else \
+		echo "🚀 Running compiler with file: $(FILE)"; \
+		dotnet run --project src/Compiler/Compiler.csproj -- "$(FILE)"; \
+	fi
+
+# Run with debug mode (usage: make run-debug FILE=path/to/file.imperative)
+run-debug:
+	@if [ -z "$(FILE)" ]; then \
+		echo "🔍 Running compiler in DEBUG mode with default file..."; \
+		dotnet run --project src/Compiler/Compiler.csproj -- examples/test_valid.imperative --debug; \
+	else \
+		echo "🔍 Running compiler in DEBUG mode: $(FILE)"; \
+		dotnet run --project src/Compiler/Compiler.csproj -- "$(FILE)" --debug; \
+	fi
+
+# Run lexer only (usage: make run-lexer FILE=path/to/file.imperative)
+run-lexer:
+	@if [ -z "$(FILE)" ]; then \
+		echo "🔤 Running lexer only with default file..."; \
+		dotnet run --project src/Compiler/Compiler.csproj -- --lexer-only examples/test.imperative; \
+	else \
+		echo "🔤 Running lexer only: $(FILE)"; \
+		dotnet run --project src/Compiler/Compiler.csproj -- --lexer-only "$(FILE)"; \
+	fi
 
 # Run with example file
 run-example:
