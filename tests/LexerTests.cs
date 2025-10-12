@@ -525,7 +525,7 @@ namespace Compiler.Tests
         {
             var tokens = TokenizeFile("more_error_cases.txt");
             
-            Assert.Equal(17, tokens.Count); // error tokens + EOL + EOF
+            Assert.Equal(16, tokens.Count); // error tokens + EOL + EOF
             
             // 123.45.67.89
             AssertToken(tokens[0], TokenType.tkInvalid, "123.45.67.89", 1, 1, 12);
@@ -539,22 +539,24 @@ namespace Compiler.Tests
             AssertRecordAccessToken((RecordAccessToken)tokens[4], "abc.def.ghi.jkl", 3, 1, 15);
             AssertToken(tokens[5], TokenType.tkEOL, "\\n", 3, 16, 16);
             
-            // @#$%
-            AssertToken(tokens[6], TokenType.tkInvalid, "@", 4, 1, 1);
-            AssertToken(tokens[7], TokenType.tkInvalid, "#", 4, 2, 2);
-            AssertToken(tokens[8], TokenType.tkInvalid, "$", 4, 3, 3);
-            AssertToken(tokens[9], TokenType.tkMod, "%", 4, 4, 4);
-            AssertToken(tokens[10], TokenType.tkEOL, "\\n", 4, 5, 5);
+            // @#$% - @#$ is one invalid token, % is mod operator
+            AssertToken(tokens[6], TokenType.tkInvalid, "@#$", 4, 1, 3);
+            AssertToken(tokens[7], TokenType.tkMod, "%", 4, 4, 4);
+            AssertToken(tokens[8], TokenType.tkEOL, "\\n", 4, 5, 5);
             
-            // 123abc
-            AssertIntegerToken((IntegerToken)tokens[11], 123, "123", 5, 1, 3);
-            AssertToken(tokens[12], TokenType.tkIdentifier, "abc", 5, 4, 6);
-            AssertToken(tokens[13], TokenType.tkEOL, "\\n", 5, 7, 7);
+            // 123abc - parsed as single invalid token
+            AssertToken(tokens[9], TokenType.tkInvalid, "123abc", 5, 1, 6);
+            AssertToken(tokens[10], TokenType.tkEOL, "\\n", 5, 7, 7);
             
             // abc123.456
-            AssertRecordAccessToken((RecordAccessToken)tokens[14], "abc123.456", 6, 1, 10);
-            AssertToken(tokens[15], TokenType.tkEOL, "\\n", 6, 11, 11);
-            AssertToken(tokens[16], TokenType.tkEOF, "", 7, 1, 1);
+            AssertRecordAccessToken((RecordAccessToken)tokens[11], "abc123.456", 6, 1, 10);
+            AssertToken(tokens[12], TokenType.tkEOL, "\\n", 6, 11, 11);
+            
+            // abcf$k4j#@1 - identifier with invalid chars, all as one invalid token
+            AssertToken(tokens[13], TokenType.tkInvalid, "abcf$k4j#@1", 7, 1, 11);
+            AssertToken(tokens[14], TokenType.tkEOL, "\\n", 7, 12, 12);
+            
+            AssertToken(tokens[15], TokenType.tkEOF, "", 8, 1, 1);
         }
 
         [Fact]

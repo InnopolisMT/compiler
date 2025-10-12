@@ -78,10 +78,10 @@ Run commands from the project root for best results.
 
 ## To-do's
 
-- [ ] Fix invalid words (e.g., `4fa` should be one `tkInvalid` token, currently produces 3 different `tkInvalid` tokens)
 - [ ] Implement Parser
 - [ ] Implement Semantic Analyzer
 - [ ] Implement Code Generator
+- [ ] Add support for comments
 
 ## Questions
 
