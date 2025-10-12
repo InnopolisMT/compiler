@@ -10,8 +10,10 @@ help:
 	@echo "  make restore        - Restore NuGet packages"
 	@echo "  make test           - Run all tests"
 	@echo "  make test-verbose   - Run tests with detailed output"
-	@echo "  make run            - Run the compiler"
+	@echo "  make run            - Run the compiler (default example)"
+	@echo "  make run-file       - Run with specific file (FILE=path)"
 	@echo "  make run-example    - Run compiler with example file"
+	@echo "  make run-help       - Show compiler help"
 	@echo "  make watch          - Watch and rebuild on changes"
 	@echo "  make format         - Format code"
 	@echo "  make lint           - Check code style"
@@ -58,15 +60,30 @@ test-coverage:
 	@echo "🧪 Running tests with coverage..."
 	dotnet test Compiler.sln --collect:"XPlat Code Coverage"
 
-# Run the compiler
+# Run the compiler (with default example file)
 run:
 	@echo "🚀 Running compiler..."
 	dotnet run --project src/Compiler/Compiler.csproj
 
+# Run with specific file (usage: make run-file FILE=path/to/file.imperative)
+run-file:
+	@if [ -z "$(FILE)" ]; then \
+		echo "❌ Error: FILE parameter is required"; \
+		echo "Usage: make run-file FILE=path/to/file.imperative"; \
+		exit 1; \
+	fi
+	@echo "🚀 Running compiler with file: $(FILE)"
+	dotnet run --project src/Compiler/Compiler.csproj -- "$(FILE)"
+
 # Run with example file
 run-example:
 	@echo "🚀 Running compiler with example..."
-	@cd src/Compiler && dotnet run
+	dotnet run --project src/Compiler/Compiler.csproj -- examples/test.imperative
+
+# Show compiler help
+run-help:
+	@echo "🚀 Showing compiler help..."
+	dotnet run --project src/Compiler/Compiler.csproj -- --help
 
 # Watch mode - rebuild on changes
 watch:

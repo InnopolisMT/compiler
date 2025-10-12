@@ -1,82 +1,98 @@
 # Compiler
 
-Компилятор императивного языка программирования, разработанный как учебный проект.
+An imperative programming language compiler developed as an educational project.
 
-## Структура проекта
+## Makefile Commands
 
-```
-compiler/
-├── Compiler.sln              # Solution файл (включает все проекты)
-├── src/
-│   └── Compiler/             # Основной проект компилятора
-│       ├── Compiler.csproj
-│       ├── Program.cs        # Точка входа
-│       └── Lexer/            # Лексический анализатор
-│           ├── LexerClass.cs
-│           ├── Token.cs
-│           ├── TokenDefinitions.cs
-│           └── TokenType.cs
-├── tests/                    # Проект с тестами
-│   ├── tests.csproj
-│   ├── LexerTests.cs         # Unit-тесты лексера
-│   ├── SimpleTestRunner.cs  # Кастомный test runner
-│   └── test_files/           # Тестовые файлы
-├── examples/                 # Примеры программ
-│   └── test.imperative
-└── docs/                     # Документация проекта
-```
+The project includes a Makefile with convenient commands for common tasks.
 
-## Команды
-
-### Использование Makefile (рекомендуется)
-
-Для удобства в проекте есть Makefile с набором полезных команд:
+### Basic Commands
 
 ```bash
-# Показать все доступные команды
-make help
-
-# Основные команды
-make build          # Собрать проект
-make test           # Запустить тесты
-make run            # Запустить компилятор
-make clean          # Очистить артефакты сборки
-
-# Команды для разработки
-make dev            # Clean + Restore + Build + Test
-make watch          # Автоматическая пересборка при изменениях
-make format         # Форматировать код
-make lint           # Проверить стиль кода
-
-# Дополнительные команды
-make release        # Собрать Release версию
-make test-verbose   # Запустить тесты с подробным выводом
-make rebuild        # Полная пересборка (clean + build)
+make help          # Show all available commands
+make build         # Build the project
+make test          # Run tests
+make run           # Run the compiler (with default file)
+make clean         # Clean build artifacts
 ```
 
-### Прямое использование dotnet CLI
-
-Если вы предпочитаете использовать dotnet напрямую:
+### Working with Files
 
 ```bash
-# Сборка проекта
+# Compile a specific file
+make run-file FILE=examples/simple.imperative
+
+# Show compiler help
+make run-help
+
+# Run with example file
+make run-example
+```
+
+### Development
+
+```bash
+make dev           # Clean + Restore + Build + Test
+make watch         # Auto-rebuild on changes
+make format        # Format code
+make lint          # Check code style
+make rebuild       # Full rebuild
+```
+
+### Additional Commands
+
+```bash
+make release       # Build Release version
+make test-verbose  # Run tests with detailed output
+make test-watch    # Run tests on changes
+make install       # Install development tools
+```
+
+## Using dotnet CLI Directly
+
+If you prefer using dotnet CLI directly:
+
+```bash
+# Build and run
 dotnet build Compiler.sln
-
-# Запуск компилятора
 dotnet run --project src/Compiler/Compiler.csproj
+dotnet run --project src/Compiler/Compiler.csproj -- examples/simple.imperative
+dotnet run --project src/Compiler/Compiler.csproj -- --help
 
-# Запуск тестов
+# Tests
 dotnet test Compiler.sln
+dotnet test --verbosity detailed
 
-# Очистка проекта
+# Clean
 dotnet clean Compiler.sln
 ```
 
+## Examples
+
+The `examples/` directory contains sample programs:
+- `test.imperative` - Full example with types, arrays, and loops
+- `simple.imperative` - Simple example with variables
+
+**Note:** File paths are relative to the current working directory.  
+Run commands from the project root for best results.
+
 ## To-do's
-- Fix invalid words (ex. 4fa should be one tkInvalid token, now is 3 different tkInvalid tokens)
 
-## Требования
-- .NET 9.0 SDK или выше
+- [ ] Fix invalid words (e.g., `4fa` should be one `tkInvalid` token, currently produces 3 different `tkInvalid` tokens)
+- [ ] Implement Parser
+- [ ] Implement Semantic Analyzer
+- [ ] Implement Code Generator
 
-## Лицензия
-См. файл LICENSE
+## Questions
+
+- Should we add support for multi-line comments?
+- What optimizations should be applied at the lexer level?
+
+## Requirements
+
+- .NET 9.0 SDK or higher
+- Make (for using Makefile)
+
+## License
+
+See LICENSE file
