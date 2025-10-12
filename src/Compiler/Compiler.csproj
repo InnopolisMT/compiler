@@ -1,0 +1,31 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <RootNamespace>Compiler</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="YaccLexTools.Gppg" Version="1.5.3.1" />
+  </ItemGroup>
+
+  <!-- Файлы грамматики для gppg -->
+  <ItemGroup>
+    <YaccFile Include="Parser\Grammar.y">
+      <OutputFile>Parser\Generated\Parser.cs</OutputFile>
+      <Arguments>/gplex /nolines</Arguments>
+    </YaccFile>
+  </ItemGroup>
+
+  <!-- Post-process generated parser to make classes internal -->
+  <Target Name="FixGeneratedParserVisibility" AfterTargets="YaccLexToolsGppg">
+    <Exec Command="sed -i '' 's/public abstract class ScanBase/internal abstract class ScanBase/g' Parser/Generated/Parser.cs" />
+    <Exec Command="sed -i '' 's/public class ScanObj/internal class ScanObj/g' Parser/Generated/Parser.cs" />
+    <Exec Command="sed -i '' 's/public class Parser/internal class Parser/g' Parser/Generated/Parser.cs" />
+    <Exec Command="sed -i '' 's/public enum Tokens/internal enum Tokens/g' Parser/Generated/Parser.cs" />
+  </Target>
+
+</Project>

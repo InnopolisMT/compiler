@@ -20,11 +20,14 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../src/Compiler.csproj" />
+    <ProjectReference Include="../src/Compiler/Compiler.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <None Update="test_files\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="parser_test_files\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

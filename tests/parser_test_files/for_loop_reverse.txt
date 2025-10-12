@@ -1,0 +1,6 @@
+routine main()
+    for i in reverse 10 .. 1 loop
+        print i
+    end
+end
+

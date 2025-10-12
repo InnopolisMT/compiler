@@ -1,0 +1,5 @@
+type Person is record
+    var age : integer
+    var name : integer
+end
+

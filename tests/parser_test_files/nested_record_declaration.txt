@@ -1,0 +1,15 @@
+type Address is record
+    var street : integer
+    var number : integer
+end
+
+type Person is record
+    var name : integer
+    var addr : Address
+end
+
+type Company is record
+    var owner : Person
+    var employees : integer
+end
+

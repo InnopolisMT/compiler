@@ -1,0 +1,4 @@
+routine main()
+    x := 42
+end
+

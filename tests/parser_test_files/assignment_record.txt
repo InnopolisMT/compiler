@@ -1,0 +1,4 @@
+routine main()
+    person.age := 100
+end
+

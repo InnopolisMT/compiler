@@ -1,0 +1,152 @@
+.PHONY: help build clean test run restore format lint watch dev release install
+
+# Default target
+help:
+	@echo "🔧 Compiler Project - Available commands:"
+	@echo ""
+	@echo "  make build          - Build the project (Debug)"
+	@echo "  make release        - Build the project (Release)"
+	@echo "  make clean          - Clean build artifacts"
+	@echo "  make restore        - Restore NuGet packages"
+	@echo "  make test           - Run all tests"
+	@echo "  make test-verbose   - Run tests with detailed output"
+	@echo "  make run            - Run the compiler (default example)"
+	@echo "  make run-file       - Run with specific file (FILE=path, DEBUG=1 for detailed AST)"
+	@echo "  make run-debug      - Run with debug mode (FILE=path)"
+	@echo "  make run-lexer      - Run lexer only (FILE=path)"
+	@echo "  make run-example    - Run compiler with example file"
+	@echo "  make run-help       - Show compiler help"
+	@echo "  make watch          - Watch and rebuild on changes"
+	@echo "  make format         - Format code"
+	@echo "  make lint           - Check code style"
+	@echo "  make dev            - Clean + Restore + Build + Test"
+	@echo "  make install        - Install required tools"
+	@echo "  make all            - Build everything"
+	@echo ""
+
+# Build the project
+build:
+	@echo "🔨 Building project..."
+	dotnet build Compiler.sln
+
+# Build in Release mode
+release:
+	@echo "🔨 Building project (Release)..."
+	dotnet build Compiler.sln -c Release
+
+# Clean build artifacts
+clean:
+	@echo "🧹 Cleaning..."
+	dotnet clean Compiler.sln
+	@find . -type d -name "bin" -exec rm -rf {} + 2>/dev/null || true
+	@find . -type d -name "obj" -exec rm -rf {} + 2>/dev/null || true
+	@echo "✅ Clean complete"
+
+# Restore NuGet packages
+restore:
+	@echo "📦 Restoring packages..."
+	dotnet restore Compiler.sln
+
+# Run all tests
+test:
+	@echo "🧪 Running tests..."
+	dotnet test Compiler.sln --verbosity minimal
+
+# Run tests with verbose output
+test-verbose:
+	@echo "🧪 Running tests (verbose)..."
+	dotnet test Compiler.sln --verbosity detailed
+
+# Run tests with coverage (if you add coverage tool later)
+test-coverage:
+	@echo "🧪 Running tests with coverage..."
+	dotnet test Compiler.sln --collect:"XPlat Code Coverage"
+
+# Run the compiler (with default example file)
+run:
+	@echo "🚀 Running compiler..."
+	dotnet run --project src/Compiler/Compiler.csproj
+
+# Run with specific file (usage: make run-file FILE=path/to/file.imperative DEBUG=1)
+run-file:
+	@if [ -z "$(FILE)" ]; then \
+		echo "❌ Error: FILE parameter is required"; \
+		echo "Usage: make run-file FILE=path/to/file.imperative"; \
+		echo "       make run-file FILE=path/to/file.imperative DEBUG=1  # Debug mode"; \
+		exit 1; \
+	fi
+	@if [ "$(DEBUG)" = "1" ]; then \
+		echo "🚀 Running compiler with file (DEBUG mode): $(FILE)"; \
+		dotnet run --project src/Compiler/Compiler.csproj -- "$(FILE)" --debug; \
+	else \
+		echo "🚀 Running compiler with file: $(FILE)"; \
+		dotnet run --project src/Compiler/Compiler.csproj -- "$(FILE)"; \
+	fi
+
+# Run with debug mode (usage: make run-debug FILE=path/to/file.imperative)
+run-debug:
+	@if [ -z "$(FILE)" ]; then \
+		echo "🔍 Running compiler in DEBUG mode with default file..."; \
+		dotnet run --project src/Compiler/Compiler.csproj -- examples/test_valid.imperative --debug; \
+	else \
+		echo "🔍 Running compiler in DEBUG mode: $(FILE)"; \
+		dotnet run --project src/Compiler/Compiler.csproj -- "$(FILE)" --debug; \
+	fi
+
+# Run lexer only (usage: make run-lexer FILE=path/to/file.imperative)
+run-lexer:
+	@if [ -z "$(FILE)" ]; then \
+		echo "🔤 Running lexer only with default file..."; \
+		dotnet run --project src/Compiler/Compiler.csproj -- --lexer-only examples/test.imperative; \
+	else \
+		echo "🔤 Running lexer only: $(FILE)"; \
+		dotnet run --project src/Compiler/Compiler.csproj -- --lexer-only "$(FILE)"; \
+	fi
+
+# Run with example file
+run-example:
+	@echo "🚀 Running compiler with example..."
+	dotnet run --project src/Compiler/Compiler.csproj -- examples/test.imperative
+
+# Show compiler help
+run-help:
+	@echo "🚀 Showing compiler help..."
+	dotnet run --project src/Compiler/Compiler.csproj -- --help
+
+# Watch mode - rebuild on changes
+watch:
+	@echo "👀 Watching for changes..."
+	dotnet watch --project src/Compiler/Compiler.csproj run
+
+# Format code
+format:
+	@echo "✨ Formatting code..."
+	dotnet format Compiler.sln
+
+# Check code style without modifying
+lint:
+	@echo "🔍 Checking code style..."
+	dotnet format Compiler.sln --verify-no-changes
+
+# Development workflow: clean, restore, build, test
+dev: clean restore build test
+	@echo "✅ Development build complete!"
+
+# Build everything
+all: restore build
+	@echo "✅ Build complete!"
+
+# Install development tools
+install:
+	@echo "📦 Installing development tools..."
+	dotnet tool install -g dotnet-format || dotnet tool update -g dotnet-format
+	@echo "✅ Tools installed!"
+
+# Quick rebuild
+rebuild: clean build
+
+# Run tests continuously
+test-watch:
+	@echo "👀 Watching tests..."
+	dotnet watch --project tests/tests.csproj test
+

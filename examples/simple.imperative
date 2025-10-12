@@ -1,0 +1,10 @@
+var x : integer is 42
+var y : real is 3.14
+var flag : boolean is true
+
+print x
+print y
+print flag
+
+4fa
+$#@
