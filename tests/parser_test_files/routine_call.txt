@@ -1,0 +1,7 @@
+routine foo()
+    print 1
+end
+
+routine main()
+    print 2
+end

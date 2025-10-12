@@ -1,0 +1,5 @@
+routine main()
+    person.addr.street := 100
+    print person.addr.street
+end
+

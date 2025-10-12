@@ -1,0 +1,10 @@
+routine main()
+    company.owner.addr.street := 123
+    
+    if (company.owner.addr.number = 456) then
+        print company.owner.name
+    end
+    
+    x := company.owner.addr.street + 10
+end
+

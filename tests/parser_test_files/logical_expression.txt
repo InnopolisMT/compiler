@@ -1,0 +1,6 @@
+routine main()
+    if (x > 5 and y < 10) then
+        print x
+    end
+end
+

@@ -1,0 +1,6 @@
+routine main()
+    while (x < 10) loop
+        print x
+    end
+end
+

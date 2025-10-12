@@ -200,10 +200,50 @@ The parser is built using **GPPG** (Gardens Point Parser Generator) version 1.5.
 
 For more details on the parser integration, see `docs/parser_integration_status.md`.
 
+## Testing
+
+The project includes comprehensive test suites for both lexer and parser:
+
+```bash
+# Run all tests (65 tests)
+make test
+
+# Run only lexer tests (23 tests)
+dotnet test --filter "FullyQualifiedName~LexerTests"
+
+# Run only parser tests (42 tests)
+dotnet test --filter "FullyQualifiedName~ParserTests"
+
+# Verbose output
+make test-verbose
+```
+
+### Test Coverage
+
+**Lexer Tests (23):**
+- Identifiers, keywords, literals
+- Operators and delimiters
+- Record access notation
+- Error handling
+
+**Parser Tests (42):**
+- Variable declarations (with/without initialization)
+- Type declarations (record, array, user-defined, nested records)
+- Routine declarations (with/without parameters, return types)
+- Statements (assignment, if-then-else, loops, return, print)
+- Expressions (binary, unary, precedence, nested)
+- Record access (simple and nested up to 4 levels)
+- Array access
+- Complex programs
+- Error handling
+
+All tests read code from external files in `tests/test_files/` (23 files) and `tests/parser_test_files/` (28 files), making it easy to add new test cases.
+
 ## To-do's
 
 - [x] Implement Lexer
 - [x] Implement Parser
+- [x] Add comprehensive tests
 - [ ] Implement Semantic Analyzer
 - [ ] Implement Code Generator
 - [ ] Add support for comments

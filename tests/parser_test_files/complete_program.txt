@@ -1,0 +1,31 @@
+type Address is record
+    var streetCode : integer
+    var number : integer
+end
+
+type Person is record
+    var age : integer
+    var addr : Address
+end
+
+type IntArray is array[5] integer
+
+var globalVar : integer is 100
+
+routine main()
+    var arr : IntArray is [1, 2, 3, 4, 5]
+    var age : integer is 30
+    
+    age := 50
+    
+    for i in 1 .. 5 loop
+        print arr[i]
+    end
+    
+    if (age > 10) then
+        print age
+    else
+        print 0
+    end
+end
+

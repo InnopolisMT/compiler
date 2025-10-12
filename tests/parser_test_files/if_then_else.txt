@@ -1,0 +1,8 @@
+routine main()
+    if (x > 10) then
+        print x
+    else
+        print 0
+    end
+end
+

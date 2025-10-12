@@ -1,0 +1,4 @@
+routine main()
+    print 42
+end
+
