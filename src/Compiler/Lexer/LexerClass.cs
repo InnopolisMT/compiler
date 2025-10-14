@@ -242,6 +242,15 @@ public class LexerClass
             {
                 return ReadOperator(_line, _column);
             }
+            if (_currentChar == '#')
+            {
+                // Skip comment until end of line
+                while (_currentChar != '\0' && _currentChar != '\n')
+                {
+                    Move();
+                }
+                continue;
+            }
 
             // Collect all consecutive invalid characters into one token
             int startLine = _line;

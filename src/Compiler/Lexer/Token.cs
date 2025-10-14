@@ -15,7 +15,7 @@ public abstract class Token(TokenType type, string lexeme, Span span)
     public Span Span { get; } = span;
     public string Lexeme { get; } = lexeme;
 
-    public override string ToString() => $"{Type}: {Lexeme}, \tspan: {Span}";
+    public override string ToString() => $"{Type,-30}: {Lexeme, -30}span: {Span}";
 }
 
 public class IdentifierToken(string lexeme, Span span) : Token(TokenType.tkIdentifier, lexeme, span)

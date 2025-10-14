@@ -9,9 +9,10 @@ namespace Compiler
         static void Main(string[] args)
         {
             // Default file path (relative to current working directory)
-            string filePath = "examples/test.imperative";
+            string filePath = "/Users/timofeykurstak/compiler/examples/test.imperative";
             bool lexerOnly = false;
             bool debugMode = false;
+            bool hasInvalid = false;
 
             // Parse command line arguments
             if (args.Length > 0)
@@ -74,6 +75,26 @@ namespace Compiler
                 {
                     // Full compilation: lexer + parser
                     var lexer = new LexerClass(input);
+                    var token = lexer.NextToken();
+                    while (token.Type != TokenType.tkEOF)
+                    {
+                        if (token.Type == TokenType.tkInvalid)
+                        {
+                            hasInvalid = true;
+                            Console.Error.Write($"{filePath}({token.Span.Line},{token.Span.Start}): ");
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.Error.Write($"\x1b[1mInvalid token:\x1b[0m");
+                            Console.ResetColor();
+                            Console.Error.WriteLine($" '{token.Lexeme}'");
+                        }
+                        token = lexer.NextToken();
+                    }
+                    if (hasInvalid)
+                    {
+                        Console.Error.WriteLine("Errors found during lexical analysis. Aborting parsing.");
+                        Environment.Exit(1);
+                    }
+                    lexer = new LexerClass(input);
                     var parser = new ParserFacade(lexer);
                     
                     Console.WriteLine("PARSING...");
