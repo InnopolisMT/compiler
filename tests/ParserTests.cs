@@ -8,13 +8,6 @@ namespace Compiler.Tests
 {
     public class ParserTests
     {
-        // ============================================================================
-        // HELPER METHODS
-        // ============================================================================
-
-        /// <summary>
-        /// Parse code from string
-        /// </summary>
         private ProgramNode ParseCode(string code)
         {
             var lexer = new LexerClass(code);
@@ -22,9 +15,6 @@ namespace Compiler.Tests
             return parser.Parse();
         }
 
-        /// <summary>
-        /// Parse code from file in parser_test_files directory
-        /// </summary>
         private ProgramNode ParseFile(string fileName)
         {
             string filePath = Path.Combine("parser_test_files", fileName);
@@ -32,18 +22,12 @@ namespace Compiler.Tests
             return ParseCode(code);
         }
 
-        /// <summary>
-        /// Get single declaration of specific type from AST
-        /// </summary>
         private T GetSingleDeclaration<T>(ProgramNode ast) where T : DeclarationNode
         {
             Assert.Single(ast.Declarations);
             return Assert.IsType<T>(ast.Declarations[0]);
         }
 
-        /// <summary>
-        /// Get declaration of specific type by index
-        /// </summary>
         private T GetDeclaration<T>(ProgramNode ast, int index = 0) where T : DeclarationNode
         {
             var decls = ast.Declarations.OfType<T>().ToList();
@@ -51,18 +35,11 @@ namespace Compiler.Tests
             return decls[index];
         }
 
-        /// <summary>
-        /// Get single statement from routine body
-        /// </summary>
         private T GetSingleStatement<T>(RoutineDeclarationNode routine) where T : StatementNode
         {
             Assert.Single(routine.Body.Statements);
             return Assert.IsType<T>(routine.Body.Statements[0]);
         }
-
-        // ============================================================================
-        // DECLARATION TESTS
-        // ============================================================================
 
         [Fact]
         public void TestSimpleVariableDeclaration()
@@ -71,7 +48,7 @@ namespace Compiler.Tests
             var varDecl = GetSingleDeclaration<VariableDeclarationNode>(ast);
 
             Assert.Equal("x", varDecl.Name);
-            
+
             var type = Assert.IsType<PrimitiveTypeNode>(varDecl.Type);
             Assert.Equal("integer", type.TypeName);
 
@@ -98,13 +75,13 @@ namespace Compiler.Tests
             var typeDecl = GetSingleDeclaration<TypeDeclarationNode>(ast);
 
             Assert.Equal("Person", typeDecl.Name);
-            
+
             var recordType = Assert.IsType<RecordTypeNode>(typeDecl.Type);
             Assert.Equal(2, recordType.Fields.Count);
-            
+
             Assert.Equal("age", recordType.Fields[0].Name);
             Assert.IsType<PrimitiveTypeNode>(recordType.Fields[0].Type);
-            
+
             Assert.Equal("name", recordType.Fields[1].Name);
             Assert.IsType<PrimitiveTypeNode>(recordType.Fields[1].Type);
         }
@@ -116,12 +93,12 @@ namespace Compiler.Tests
             var typeDecl = GetSingleDeclaration<TypeDeclarationNode>(ast);
 
             Assert.Equal("IntArray", typeDecl.Name);
-            
+
             var arrayType = Assert.IsType<ArrayTypeNode>(typeDecl.Type);
-            
+
             var sizeExpr = Assert.IsType<IntegerLiteralNode>(arrayType.Size);
             Assert.Equal(5L, sizeExpr.Value);
-            
+
             var elemType = Assert.IsType<PrimitiveTypeNode>(arrayType.ElementType);
             Assert.Equal("integer", elemType.TypeName);
         }
@@ -146,23 +123,19 @@ namespace Compiler.Tests
 
             Assert.Equal("add", routine.Name);
             Assert.Equal(2, routine.Parameters.Count);
-            
-            // Check first parameter
+
             Assert.Equal("a", routine.Parameters[0].Name);
             var param1Type = Assert.IsType<PrimitiveTypeNode>(routine.Parameters[0].Type);
             Assert.Equal("integer", param1Type.TypeName);
-            
-            // Check second parameter
+
             Assert.Equal("b", routine.Parameters[1].Name);
             var param2Type = Assert.IsType<PrimitiveTypeNode>(routine.Parameters[1].Type);
             Assert.Equal("integer", param2Type.TypeName);
 
-            // Check return type
             Assert.NotNull(routine.ReturnType);
             var returnType = Assert.IsType<PrimitiveTypeNode>(routine.ReturnType);
             Assert.Equal("integer", returnType.TypeName);
 
-            // Check body has return statement
             Assert.Single(routine.Body.Statements);
             Assert.IsType<ReturnStatementNode>(routine.Body.Statements[0]);
         }
@@ -192,14 +165,12 @@ namespace Compiler.Tests
             var routine = GetSingleDeclaration<RoutineDeclarationNode>(ast);
             var assignment = GetSingleStatement<AssignmentNode>(routine);
 
-            // Check target is RecordAccessNode
             var recordAccess = Assert.IsType<RecordAccessNode>(assignment.Target);
             Assert.Equal("age", recordAccess.FieldName);
-            
+
             var record = Assert.IsType<IdentifierNode>(recordAccess.Record);
             Assert.Equal("person", record.Name);
 
-            // Check value
             var value = Assert.IsType<IntegerLiteralNode>(assignment.Value);
             Assert.Equal(100L, value.Value);
         }
@@ -211,16 +182,14 @@ namespace Compiler.Tests
             var routine = GetSingleDeclaration<RoutineDeclarationNode>(ast);
             var assignment = GetSingleStatement<AssignmentNode>(routine);
 
-            // Check target is ArrayAccessNode
             var arrayAccess = Assert.IsType<ArrayAccessNode>(assignment.Target);
-            
+
             var array = Assert.IsType<IdentifierNode>(arrayAccess.Array);
             Assert.Equal("arr", array.Name);
-            
+
             var index = Assert.IsType<IntegerLiteralNode>(arrayAccess.Index);
             Assert.Equal(5L, index.Value);
 
-            // Check value
             var value = Assert.IsType<IntegerLiteralNode>(assignment.Value);
             Assert.Equal(42L, value.Value);
         }
@@ -232,15 +201,12 @@ namespace Compiler.Tests
             var routine = GetSingleDeclaration<RoutineDeclarationNode>(ast);
             var ifStmt = GetSingleStatement<IfStatementNode>(routine);
 
-            // Check condition
             var condition = Assert.IsType<BinaryOperationNode>(ifStmt.Condition);
             Assert.Equal("=", condition.Operator);
 
-            // Check then body
             Assert.Single(ifStmt.ThenBody);
             Assert.IsType<PrintStatementNode>(ifStmt.ThenBody[0]);
 
-            // Check else is empty
             Assert.Empty(ifStmt.ElseBody);
         }
 
@@ -251,15 +217,12 @@ namespace Compiler.Tests
             var routine = GetSingleDeclaration<RoutineDeclarationNode>(ast);
             var ifStmt = GetSingleStatement<IfStatementNode>(routine);
 
-            // Check condition
             var condition = Assert.IsType<BinaryOperationNode>(ifStmt.Condition);
             Assert.Equal(">", condition.Operator);
 
-            // Check then body
             Assert.Single(ifStmt.ThenBody);
             Assert.IsType<PrintStatementNode>(ifStmt.ThenBody[0]);
 
-            // Check else body exists
             Assert.Single(ifStmt.ElseBody);
             Assert.IsType<PrintStatementNode>(ifStmt.ElseBody[0]);
         }
@@ -274,15 +237,13 @@ namespace Compiler.Tests
             Assert.Equal("i", forLoop.Variable);
             Assert.False(forLoop.IsReverse);
 
-            // Check range
             var range = Assert.IsType<RangeNode>(forLoop.Range);
             var rangeStart = Assert.IsType<IntegerLiteralNode>(range.Start);
             Assert.Equal(1L, rangeStart.Value);
-            
+
             var rangeEnd = Assert.IsType<IntegerLiteralNode>(range.End);
             Assert.Equal(10L, rangeEnd.Value);
 
-            // Check body
             Assert.Single(forLoop.Body);
             Assert.IsType<PrintStatementNode>(forLoop.Body[0]);
         }
@@ -295,7 +256,7 @@ namespace Compiler.Tests
             var forLoop = GetSingleStatement<ForLoopNode>(routine);
 
             Assert.Equal("i", forLoop.Variable);
-            Assert.True(forLoop.IsReverse); // Key difference!
+            Assert.True(forLoop.IsReverse);
 
             var range = Assert.IsType<RangeNode>(forLoop.Range);
             Assert.Equal(10L, ((IntegerLiteralNode)range.Start).Value);
@@ -309,11 +270,9 @@ namespace Compiler.Tests
             var routine = GetSingleDeclaration<RoutineDeclarationNode>(ast);
             var whileLoop = GetSingleStatement<WhileLoopNode>(routine);
 
-            // Check condition
             var condition = Assert.IsType<BinaryOperationNode>(whileLoop.Condition);
             Assert.Equal("<", condition.Operator);
 
-            // Check body
             Assert.Single(whileLoop.Body);
             Assert.IsType<PrintStatementNode>(whileLoop.Body[0]);
         }
@@ -329,7 +288,6 @@ namespace Compiler.Tests
             var routine = GetSingleDeclaration<RoutineDeclarationNode>(ast);
             var assignment = Assert.IsType<AssignmentNode>(routine.Body.Statements[0]);
 
-            // Check that x := 10 + 20 * 3 is parsed as 10 + (20 * 3)
             var plus = Assert.IsType<BinaryOperationNode>(assignment.Value);
             Assert.Equal("+", plus.Operator);
 
@@ -347,22 +305,19 @@ namespace Compiler.Tests
         {
             var ast = ParseFile("operator_precedence.txt");
             var routine = GetSingleDeclaration<RoutineDeclarationNode>(ast);
-            
+
             Assert.Equal(3, routine.Body.Statements.Count);
 
-            // First: x := 2 + 3 * 4 should be 2 + (3 * 4)
             var assign1 = Assert.IsType<AssignmentNode>(routine.Body.Statements[0]);
             var expr1 = Assert.IsType<BinaryOperationNode>(assign1.Value);
             Assert.Equal("+", expr1.Operator);
-            Assert.IsType<BinaryOperationNode>(expr1.Right); // should be multiplication
+            Assert.IsType<BinaryOperationNode>(expr1.Right);
 
-            // Second: y := 10 - 2 / 2 should be 10 - (2 / 2)
             var assign2 = Assert.IsType<AssignmentNode>(routine.Body.Statements[1]);
             var expr2 = Assert.IsType<BinaryOperationNode>(assign2.Value);
             Assert.Equal("-", expr2.Operator);
-            Assert.IsType<BinaryOperationNode>(expr2.Right); // should be division
+            Assert.IsType<BinaryOperationNode>(expr2.Right);
 
-            // Third: z := (5 + 3) * 2 - parentheses override precedence
             var assign3 = Assert.IsType<AssignmentNode>(routine.Body.Statements[2]);
             var expr3 = Assert.IsType<BinaryOperationNode>(assign3.Value);
             Assert.Equal("*", expr3.Operator);
@@ -377,15 +332,12 @@ namespace Compiler.Tests
             var routine = GetSingleDeclaration<RoutineDeclarationNode>(ast);
             var ifStmt = GetSingleStatement<IfStatementNode>(routine);
 
-            // Check that condition is "and" operation
             var andOp = Assert.IsType<BinaryOperationNode>(ifStmt.Condition);
             Assert.Equal("and", andOp.Operator);
 
-            // Left side: x > 5
             var leftCmp = Assert.IsType<BinaryOperationNode>(andOp.Left);
             Assert.Equal(">", leftCmp.Operator);
 
-            // Right side: y < 10
             var rightCmp = Assert.IsType<BinaryOperationNode>(andOp.Right);
             Assert.Equal("<", rightCmp.Operator);
         }
@@ -395,16 +347,14 @@ namespace Compiler.Tests
         {
             var ast = ParseFile("unary_operations.txt");
             var routine = GetSingleDeclaration<RoutineDeclarationNode>(ast);
-            
+
             Assert.Equal(2, routine.Body.Statements.Count);
 
-            // First: x := -42
             var assignment = Assert.IsType<AssignmentNode>(routine.Body.Statements[0]);
             var unaryMinus = Assert.IsType<UnaryOperationNode>(assignment.Value);
             Assert.Equal("-", unaryMinus.Operator);
             Assert.Equal(42L, ((IntegerLiteralNode)unaryMinus.Operand).Value);
 
-            // Second: if (not flag) then...
             var ifStmt = Assert.IsType<IfStatementNode>(routine.Body.Statements[1]);
             var notOp = Assert.IsType<UnaryOperationNode>(ifStmt.Condition);
             Assert.Equal("not", notOp.Operator);
@@ -418,11 +368,10 @@ namespace Compiler.Tests
             var varDecl = GetSingleDeclaration<VariableDeclarationNode>(ast);
 
             Assert.Equal("arr", varDecl.Name);
-            
+
             var arrayInit = Assert.IsType<ArrayInitializerNode>(varDecl.InitialValue);
             Assert.Equal(5, arrayInit.Elements.Count);
 
-            // Check all elements are integers
             for (int i = 0; i < 5; i++)
             {
                 var element = Assert.IsType<IntegerLiteralNode>(arrayInit.Elements[i]);
@@ -435,32 +384,28 @@ namespace Compiler.Tests
         {
             var ast = ParseFile("nested_record_access.txt");
             var routine = GetSingleDeclaration<RoutineDeclarationNode>(ast);
-            
+
             Assert.Equal(2, routine.Body.Statements.Count);
 
-            // First: person.addr.street := 100
             var assignment = Assert.IsType<AssignmentNode>(routine.Body.Statements[0]);
-            
-            // Should be RecordAccessNode with nested structure
-            // person.addr.street should be: RecordAccess("street", RecordAccess("addr", Identifier("person")))
+
             var outerAccess = Assert.IsType<RecordAccessNode>(assignment.Target);
             Assert.Equal("street", outerAccess.FieldName);
-            
+
             var middleAccess = Assert.IsType<RecordAccessNode>(outerAccess.Record);
             Assert.Equal("addr", middleAccess.FieldName);
-            
+
             var innerIdent = Assert.IsType<IdentifierNode>(middleAccess.Record);
             Assert.Equal("person", innerIdent.Name);
 
-            // Second: print person.addr.street
             var printStmt = Assert.IsType<PrintStatementNode>(routine.Body.Statements[1]);
-            
+
             var printAccess = Assert.IsType<RecordAccessNode>(printStmt.Expression);
             Assert.Equal("street", printAccess.FieldName);
-            
+
             var printMiddle = Assert.IsType<RecordAccessNode>(printAccess.Record);
             Assert.Equal("addr", printMiddle.FieldName);
-            
+
             var printIdent = Assert.IsType<IdentifierNode>(printMiddle.Record);
             Assert.Equal("person", printIdent.Name);
         }
@@ -469,34 +414,31 @@ namespace Compiler.Tests
         public void TestNestedRecordDeclaration()
         {
             var ast = ParseFile("nested_record_declaration.txt");
-            
+
             Assert.Equal(3, ast.Declarations.Count);
             var types = ast.Declarations.OfType<TypeDeclarationNode>().ToList();
             Assert.Equal(3, types.Count);
 
-            // Check Address type
             var addressType = types[0];
             Assert.Equal("Address", addressType.Name);
             var addressRecord = Assert.IsType<RecordTypeNode>(addressType.Type);
             Assert.Equal(2, addressRecord.Fields.Count);
 
-            // Check Person type - has Address field
             var personType = types[1];
             Assert.Equal("Person", personType.Name);
             var personRecord = Assert.IsType<RecordTypeNode>(personType.Type);
             Assert.Equal(2, personRecord.Fields.Count);
-            
+
             var addrField = personRecord.Fields[1];
             Assert.Equal("addr", addrField.Name);
             var addrFieldType = Assert.IsType<UserTypeNode>(addrField.Type);
             Assert.Equal("Address", addrFieldType.TypeName);
 
-            // Check Company type - has Person field
             var companyType = types[2];
             Assert.Equal("Company", companyType.Name);
             var companyRecord = Assert.IsType<RecordTypeNode>(companyType.Type);
             Assert.Equal(2, companyRecord.Fields.Count);
-            
+
             var ownerField = companyRecord.Fields[0];
             Assert.Equal("owner", ownerField.Name);
             var ownerFieldType = Assert.IsType<UserTypeNode>(ownerField.Type);
@@ -508,40 +450,33 @@ namespace Compiler.Tests
         {
             var ast = ParseFile("nested_record_usage.txt");
             var routine = GetSingleDeclaration<RoutineDeclarationNode>(ast);
-            
+
             Assert.Equal(3, routine.Body.Statements.Count);
 
-            // First: company.owner.addr.street := 123 (4 levels!)
             var assignment = Assert.IsType<AssignmentNode>(routine.Body.Statements[0]);
-            
-            // Verify 4-level nesting: company.owner.addr.street
+
             var level4 = Assert.IsType<RecordAccessNode>(assignment.Target);
             Assert.Equal("street", level4.FieldName);
-            
+
             var level3 = Assert.IsType<RecordAccessNode>(level4.Record);
             Assert.Equal("addr", level3.FieldName);
-            
+
             var level2 = Assert.IsType<RecordAccessNode>(level3.Record);
             Assert.Equal("owner", level2.FieldName);
-            
+
             var level1 = Assert.IsType<IdentifierNode>(level2.Record);
             Assert.Equal("company", level1.Name);
 
-            // Second: if condition with nested record access
             var ifStmt = Assert.IsType<IfStatementNode>(routine.Body.Statements[1]);
             var condition = Assert.IsType<BinaryOperationNode>(ifStmt.Condition);
-            
-            // Left side of comparison should be company.owner.addr.number
+
             var conditionAccess = Assert.IsType<RecordAccessNode>(condition.Left);
             Assert.Equal("number", conditionAccess.FieldName);
-            // (не проверяем всю цепочку повторно, главное что это RecordAccess)
 
-            // Third: assignment with nested record in expression
             var assignWithExpr = Assert.IsType<AssignmentNode>(routine.Body.Statements[2]);
             var binaryOp = Assert.IsType<BinaryOperationNode>(assignWithExpr.Value);
             Assert.Equal("+", binaryOp.Operator);
-            
-            // Left side of + should be nested record access
+
             var exprAccess = Assert.IsType<RecordAccessNode>(binaryOp.Left);
             Assert.Equal("street", exprAccess.FieldName);
         }
@@ -550,7 +485,7 @@ namespace Compiler.Tests
         public void TestRoutineCall()
         {
             var ast = ParseFile("routine_call.txt");
-            
+
             Assert.Equal(2, ast.Declarations.Count);
             var routines = ast.Declarations.OfType<RoutineDeclarationNode>().ToList();
             Assert.Equal(2, routines.Count);
@@ -573,21 +508,18 @@ namespace Compiler.Tests
         {
             var ast = ParseFile("multiple_declarations.txt");
 
-            Assert.Equal(5, ast.Declarations.Count); // 3 vars + 1 type + 1 routine
+            Assert.Equal(5, ast.Declarations.Count);
 
-            // Check variables
             var variables = ast.Declarations.OfType<VariableDeclarationNode>().ToList();
             Assert.Equal(3, variables.Count);
             Assert.Equal("x", variables[0].Name);
             Assert.Equal("y", variables[1].Name);
             Assert.Equal("flag", variables[2].Name);
 
-            // Check type
             var types = ast.Declarations.OfType<TypeDeclarationNode>().ToList();
             Assert.Single(types);
             Assert.Equal("Point", types[0].Name);
 
-            // Check routine
             var routines = ast.Declarations.OfType<RoutineDeclarationNode>().ToList();
             Assert.Single(routines);
             Assert.Equal("main", routines[0].Name);
@@ -598,35 +530,28 @@ namespace Compiler.Tests
         {
             var ast = ParseFile("complete_program.txt");
 
-            // Should have 4 declarations: 3 types + 1 global var + 1 routine
             Assert.Equal(5, ast.Declarations.Count);
 
-            // Check type declarations
             var types = ast.Declarations.OfType<TypeDeclarationNode>().ToList();
             Assert.Equal(3, types.Count);
             Assert.Equal("Address", types[0].Name);
             Assert.Equal("Person", types[1].Name);
             Assert.Equal("IntArray", types[2].Name);
 
-            // Check global variable
             var globals = ast.Declarations.OfType<VariableDeclarationNode>().ToList();
             Assert.Single(globals);
             Assert.Equal("globalVar", globals[0].Name);
 
-            // Check routine
             var routines = ast.Declarations.OfType<RoutineDeclarationNode>().ToList();
             Assert.Single(routines);
-            
+
             var mainRoutine = routines[0];
             Assert.Equal("main", mainRoutine.Name);
-            
-            // Check routine body has local declarations
+
             Assert.Equal(2, mainRoutine.Body.Declarations.Count);
-            
-            // Check routine body has statements
+
             Assert.Equal(3, mainRoutine.Body.Statements.Count);
-            
-            // Verify statement types
+
             Assert.IsType<AssignmentNode>(mainRoutine.Body.Statements[0]);
             Assert.IsType<ForLoopNode>(mainRoutine.Body.Statements[1]);
             Assert.IsType<IfStatementNode>(mainRoutine.Body.Statements[2]);
@@ -672,13 +597,11 @@ namespace Compiler.Tests
             var forLoop = GetSingleStatement<ForLoopNode>(routine);
 
             var range = Assert.IsType<RangeNode>(forLoop.Range);
-            
-            // Start should be person.age (RecordAccessNode)
+
             var recordAccess = Assert.IsType<RecordAccessNode>(range.Start);
             Assert.Equal("age", recordAccess.FieldName);
             Assert.Equal("person", ((IdentifierNode)recordAccess.Record).Name);
 
-            // End should be 50
             var endValue = Assert.IsType<IntegerLiteralNode>(range.End);
             Assert.Equal(50L, endValue.Value);
         }
@@ -840,21 +763,17 @@ namespace Compiler.Tests
         {
             var ast = ParseFile("complete_program.txt");
 
-            // Verify overall structure
             Assert.True(ast.Declarations.Count >= 4, "Should have at least 4 top-level declarations");
 
-            // Verify has types
             var types = ast.Declarations.OfType<TypeDeclarationNode>().ToList();
             Assert.True(types.Count >= 3, "Should have at least 3 type declarations");
 
-            // Verify has routine
             var routines = ast.Declarations.OfType<RoutineDeclarationNode>().ToList();
             Assert.True(routines.Count >= 1, "Should have at least 1 routine");
 
             var mainRoutine = routines.First(r => r.Name == "main");
             Assert.NotNull(mainRoutine);
-            
-            // Verify routine has body
+
             Assert.True(mainRoutine.Body.Statements.Count > 0, "Main routine should have statements");
         }
 
@@ -873,10 +792,9 @@ namespace Compiler.Tests
             var routine = GetSingleDeclaration<RoutineDeclarationNode>(ast);
             var forLoop = GetSingleStatement<ForLoopNode>(routine);
 
-            // Check nested if inside for loop
             Assert.Single(forLoop.Body);
             var ifStmt = Assert.IsType<IfStatementNode>(forLoop.Body[0]);
-            
+
             Assert.Single(ifStmt.ThenBody);
             Assert.IsType<PrintStatementNode>(ifStmt.ThenBody[0]);
         }
@@ -892,15 +810,12 @@ namespace Compiler.Tests
             var routine = GetSingleDeclaration<RoutineDeclarationNode>(ast);
             var assignment = GetSingleStatement<AssignmentNode>(routine);
 
-            // Should parse as: ((a + b) * c) - (d / 2)
             var minus = Assert.IsType<BinaryOperationNode>(assignment.Value);
             Assert.Equal("-", minus.Operator);
 
-            // Left side: (a + b) * c
             var multiply = Assert.IsType<BinaryOperationNode>(minus.Left);
             Assert.Equal("*", multiply.Operator);
 
-            // Right side: d / 2
             var divide = Assert.IsType<BinaryOperationNode>(minus.Right);
             Assert.Equal("/", divide.Operator);
         }

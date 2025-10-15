@@ -16,7 +16,6 @@ namespace Compiler.Tests
             int passed = 0;
             int failed = 0;
 
-            // Run basic tests
             passed += testRunner.RunTest("Basic Identifiers", testRunner.TestBasicIdentifiers);
             passed += testRunner.RunTest("Integer Literals", testRunner.TestIntegerLiterals);
             passed += testRunner.RunTest("Real Literals", testRunner.TestRealLiterals);
@@ -64,120 +63,116 @@ namespace Compiler.Tests
 
         private List<Token> TokenizeFile(string fileName)
         {
-            // Get the directory where the test project is located
-            string? testDir = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
-            if (testDir == null)
-                throw new InvalidOperationException("Could not determine test directory");
-            
+            string? testDir = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location) ?? throw new InvalidOperationException("Could not determine test directory");
             string filePath = Path.Combine(testDir, "test_files", fileName);
             string content = File.ReadAllText(filePath);
-            
+
             var lexer = new LexerClass(content);
             var tokens = new List<Token>();
-            
+
             Token token;
             do
             {
                 token = lexer.NextToken();
                 tokens.Add(token);
             } while (token.Type != TokenType.tkEOF);
-            
+
             return tokens;
         }
 
         public bool TestBasicIdentifiers()
         {
             var tokens = TokenizeFile("basic_identifiers.txt");
-            return tokens.Count == 3 && 
-                   tokens[0].Type == TokenType.tkIdentifier && 
+            return tokens.Count == 3 &&
+                   tokens[0].Type == TokenType.tkIdentifier &&
                    tokens[0].Lexeme == "variable";
         }
 
         public bool TestIntegerLiterals()
         {
             var tokens = TokenizeFile("integer_literals.txt");
-            return tokens.Count == 5 && 
-                   tokens[0].Type == TokenType.tkIntegerLiteral && 
+            return tokens.Count == 5 &&
+                   tokens[0].Type == TokenType.tkIntegerLiteral &&
                    tokens[0].Lexeme == "123";
         }
 
         public bool TestRealLiterals()
         {
             var tokens = TokenizeFile("real_literals.txt");
-            return tokens.Count == 5 && 
-                   tokens[0].Type == TokenType.tkRealLiteral && 
+            return tokens.Count == 5 &&
+                   tokens[0].Type == TokenType.tkRealLiteral &&
                    tokens[0].Lexeme == "123.45";
         }
 
         public bool TestBooleanLiterals()
         {
             var tokens = TokenizeFile("boolean_literals.txt");
-            return tokens.Count == 4 && 
-                   tokens[0].Type == TokenType.tkBoolLiteral && 
+            return tokens.Count == 4 &&
+                   tokens[0].Type == TokenType.tkBoolLiteral &&
                    tokens[0].Lexeme == "true";
         }
 
         public bool TestKeywords()
         {
             var tokens = TokenizeFile("keywords.txt");
-            return tokens.Count == 12 && 
-                   tokens[0].Type == TokenType.tkVar && 
+            return tokens.Count == 12 &&
+                   tokens[0].Type == TokenType.tkVar &&
                    tokens[0].Lexeme == "var";
         }
 
         public bool TestOperators()
         {
             var tokens = TokenizeFile("operators.txt");
-            return tokens.Count == 15 && 
-                   tokens[0].Type == TokenType.tkPlus && 
+            return tokens.Count == 15 &&
+                   tokens[0].Type == TokenType.tkPlus &&
                    tokens[0].Lexeme == "+";
         }
 
         public bool TestRecordAccess()
         {
             var tokens = TokenizeFile("record_access.txt");
-            return tokens.Count == 5 && 
-                   tokens[0].Type == TokenType.tkRecordAccess && 
+            return tokens.Count == 5 &&
+                   tokens[0].Type == TokenType.tkRecordAccess &&
                    tokens[0].Lexeme == "person.name";
         }
 
         public bool TestTypeDeclarations()
         {
             var tokens = TokenizeFile("type_declarations.txt");
-            return tokens.Count == 13 && 
-                   tokens[0].Type == TokenType.tkType && 
+            return tokens.Count == 13 &&
+                   tokens[0].Type == TokenType.tkType &&
                    tokens[0].Lexeme == "type";
         }
 
         public bool TestArrayDeclarations()
         {
             var tokens = TokenizeFile("array_declarations.txt");
-            return tokens.Count == 10 && 
-                   tokens[0].Type == TokenType.tkType && 
+            return tokens.Count == 10 &&
+                   tokens[0].Type == TokenType.tkType &&
                    tokens[0].Lexeme == "type";
         }
 
         public bool TestControlStructures()
         {
             var tokens = TokenizeFile("control_structures.txt");
-            return tokens.Count == 25 && 
-                   tokens[0].Type == TokenType.tkIf && 
+            return tokens.Count == 25 &&
+                   tokens[0].Type == TokenType.tkIf &&
                    tokens[0].Lexeme == "if";
         }
 
         public bool TestComplexCases()
         {
             var tokens = TokenizeFile("complex_cases.txt");
-            return tokens.Count == 14 && 
-                   tokens[0].Type == TokenType.tkFor && 
+            return tokens.Count == 14 &&
+                   tokens[0].Type == TokenType.tkFor &&
                    tokens[0].Lexeme == "for";
         }
 
         public bool TestErrorCases()
         {
             var tokens = TokenizeFile("error_cases.txt");
-            return tokens.Count == 5 && 
-                   tokens[0].Type == TokenType.tkInvalid && 
+            return tokens.Count == 5 &&
+                   tokens[0].Type == TokenType.tkInvalid &&
                    tokens[0].Lexeme == "123.45.67";
         }
 
@@ -185,7 +180,7 @@ namespace Compiler.Tests
         {
             var tokens = TokenizeFile("complete_program.txt");
             var tokenTypes = tokens.Select(t => t.Type).ToList();
-            
+
             return tokenTypes.Contains(TokenType.tkType) &&
                    tokenTypes.Contains(TokenType.tkRecord) &&
                    tokenTypes.Contains(TokenType.tkRoutine) &&

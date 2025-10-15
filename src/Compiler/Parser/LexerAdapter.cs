@@ -3,15 +3,11 @@ using QUT.Gppg;
 
 namespace Compiler.Parser;
 
-/// <summary>
-/// Adapter between custom lexer and gppg parser
-/// </summary>
 internal class LexerAdapter : AbstractScanner<object, Compiler.Parser.LexLocation>
 {
     private readonly LexerClass _lexer;
     private Token _currentToken;
 
-    // Mapping from lexer TokenType to parser Tokens
     private static readonly Dictionary<TokenType, int> TokenMap = new()
     {
         { TokenType.tkIntegerLiteral, (int)Tokens.tkIntegerLiteral },
@@ -63,7 +59,7 @@ internal class LexerAdapter : AbstractScanner<object, Compiler.Parser.LexLocatio
         { TokenType.tkRightParen, (int)Tokens.tkRightParen },
         { TokenType.tkLeftBracket, (int)Tokens.tkLeftBracket },
         { TokenType.tkRightBracket, (int)Tokens.tkRightBracket },
-        { TokenType.tkEOF, (int)Tokens.EOF },  // Map tkEOF to EOF
+        { TokenType.tkEOF, (int)Tokens.EOF },
         { TokenType.tkInvalid, (int)Tokens.tkInvalid }
     };
 
@@ -73,14 +69,10 @@ internal class LexerAdapter : AbstractScanner<object, Compiler.Parser.LexLocatio
         _currentToken = null!;
     }
 
-    /// <summary>
-    /// Method called by parser to get next token
-    /// </summary>
     public override int yylex()
     {
         _currentToken = _lexer.NextToken();
-        
-        // Set position for parser
+
         yylloc = new Compiler.Parser.LexLocation(
             _currentToken.Span.Line,
             _currentToken.Span.Start,
@@ -88,28 +80,21 @@ internal class LexerAdapter : AbstractScanner<object, Compiler.Parser.LexLocatio
             _currentToken.Span.End
         );
 
-        // Skip EOL tokens (not critical for parsing)
         if (_currentToken.Type == TokenType.tkEOL)
         {
-            return yylex(); // Recursively get next token
+            return yylex();
         }
 
-        // Save token value for use in semantic actions
         yylval = GetTokenValue(_currentToken);
 
-        // Return mapped token value for parser
         if (TokenMap.TryGetValue(_currentToken.Type, out int parserToken))
         {
             return parserToken;
         }
-        
-        // Unknown token - return error
+
         return (int)Tokens.error;
     }
 
-    /// <summary>
-    /// Extract token value depending on its type
-    /// </summary>
     private object GetTokenValue(Token token)
     {
         return token switch
@@ -123,27 +108,18 @@ internal class LexerAdapter : AbstractScanner<object, Compiler.Parser.LexLocatio
         };
     }
 
-    /// <summary>
-    /// Get current token (for debugging and error messages)
-    /// </summary>
     public Token CurrentToken => _currentToken;
 
-    /// <summary>
-    /// Parse error handling
-    /// </summary>
     public override void yyerror(string format, params object[] args)
     {
         var message = string.Format(format, args);
-        var location = yylloc != null 
-            ? $" at line {yylloc.StartLine}, column {yylloc.StartColumn}" 
+        var location = yylloc != null
+            ? $" at line {yylloc.StartLine}, column {yylloc.StartColumn}"
             : "";
         throw new ParseException($"Parse error{location}: {message}");
     }
 }
 
-/// <summary>
-/// Parse exception
-/// </summary>
 public class ParseException : Exception
 {
     public ParseException(string message) : base(message) { }

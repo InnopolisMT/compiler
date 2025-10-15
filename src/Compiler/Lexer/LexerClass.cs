@@ -57,9 +57,8 @@ public class LexerClass
 
     private bool IsValidStartChar()
     {
-        // Check if current character can start a valid token
-        return char.IsDigit(_currentChar) 
-            || char.IsLetter(_currentChar) 
+        return char.IsDigit(_currentChar)
+            || char.IsLetter(_currentChar)
             || char.IsWhiteSpace(_currentChar)
             || _currentChar == '\0'
             || TokenDefinitions.Operators.ContainsKey(_currentChar.ToString());
@@ -85,7 +84,6 @@ public class LexerClass
             Move();
         }
 
-        // Check if number is followed by letter or underscore (invalid: 4fa, 123abc, etc.)
         if (char.IsLetter(_currentChar) || _currentChar == '_')
         {
             while (_currentChar != '\0' && (char.IsLetterOrDigit(_currentChar) || _currentChar == '_'))
@@ -143,8 +141,6 @@ public class LexerClass
             hasDot = true;
         }
 
-        // Check if we hit an invalid character (not whitespace, not EOL, not valid token start)
-        // If so, consume everything until whitespace/EOL as one invalid token
         if (_currentChar != '\0' && !char.IsWhiteSpace(_currentChar) && !IsValidStartChar())
         {
             isInvalid = true;
@@ -157,7 +153,6 @@ public class LexerClass
 
         Span span = new(startLine, startColumn, _column - 1);
 
-        // If we encountered invalid characters, return invalid token
         if (isInvalid)
         {
             return new SimpleToken(TokenType.tkInvalid, lexeme, span);
@@ -244,7 +239,6 @@ public class LexerClass
             }
             if (_currentChar == '#')
             {
-                // Skip comment until end of line
                 while (_currentChar != '\0' && _currentChar != '\n')
                 {
                     Move();
@@ -252,11 +246,10 @@ public class LexerClass
                 continue;
             }
 
-            // Collect all consecutive invalid characters into one token
             int startLine = _line;
             int startColumn = _column;
             string invalidLexeme = "";
-            
+
             while (_currentChar != '\0' && !IsValidStartChar())
             {
                 invalidLexeme += _currentChar;

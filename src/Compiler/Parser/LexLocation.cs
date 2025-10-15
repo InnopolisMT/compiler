@@ -1,8 +1,5 @@
 namespace Compiler.Parser;
 
-/// <summary>
-/// Public class for lexical location information
-/// </summary>
 public class LexLocation : QUT.Gppg.IMerge<LexLocation>
 {
     public int StartLine { get; set; }

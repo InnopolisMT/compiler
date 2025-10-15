@@ -12,7 +12,7 @@ namespace Compiler.TreeView
         public string GenerateTreeHtml(ProgramNode program, string title = "AST Visualization")
         {
             var sb = new StringBuilder();
-            
+
             sb.AppendLine("<!DOCTYPE html>");
             sb.AppendLine("<html lang=\"en\">");
             sb.AppendLine("<head>");
@@ -102,7 +102,6 @@ namespace Compiler.TreeView
 
         const tooltip = d3.select('#tooltip');
 
-        // Create tree layout with optimal spacing
         const treeLayout = d3.tree()
             .nodeSize([70, 220])
             .separation((a, b) => (a.parent == b.parent ? 1.2 : 1.8));
@@ -110,7 +109,6 @@ namespace Compiler.TreeView
         const root = d3.hierarchy(data);
         treeLayout(root);
 
-        // Links with smooth curves
         const link = g.selectAll('.link')
             .data(root.links())
             .enter().append('path')
@@ -119,7 +117,6 @@ namespace Compiler.TreeView
                 .x(d => d.y)
                 .y(d => d.x));
 
-        // Nodes
         const node = g.selectAll('.node')
             .data(root.descendants())
             .enter().append('g')
@@ -138,11 +135,9 @@ namespace Compiler.TreeView
                 selectNode(d);
             });
 
-        // Node circles
         node.append('circle')
             .attr('r', 7);
 
-        // Node labels
         node.append('text')
             .attr('dy', 4)
             .attr('x', d => d.children ? -12 : 12)
@@ -150,19 +145,16 @@ namespace Compiler.TreeView
             .style('font-weight', '500')
             .text(d => {
                 let label = d.data.displayName || d.data.type || 'Node';
-                // Shorten very long labels
                 if (label.length > 20) {
                     label = label.substring(0, 18) + '..';
                 }
                 return label;
             });
 
-        // Enhanced zoom behavior
         const zoom = d3.zoom()
             .scaleExtent([0.1, 3])
             .on('zoom', (event) => {
                 g.attr('transform', event.transform);
-                // Scale text size with zoom for better readability
                 const scale = event.transform.k;
                 node.selectAll('text')
                     .style('font-size', Math.max(10, 13 / scale) + 'px');
@@ -170,7 +162,6 @@ namespace Compiler.TreeView
 
         svg.call(zoom);
 
-        // Tooltip functions
         function showTooltip(event, d) {
             const tooltipContent = generateTooltipContent(d);
             tooltip.html(tooltipContent)
@@ -211,7 +202,6 @@ namespace Compiler.TreeView
 
 
 
-        // Handle window resize
         window.addEventListener('resize', function() {
             const newWidth = container.clientWidth - margin.left - margin.right;
             const newHeight = container.clientHeight - margin.top - margin.bottom;
@@ -222,10 +212,8 @@ namespace Compiler.TreeView
             setTimeout(fitToScreen, 100);
         });
 
-        // Auto-fit on load
         setTimeout(fitToScreen, 100);
 
-        // Click outside to deselect
         svg.on('click', function(event) {
             if (event.target === this) {
                 if (selectedNode) {
@@ -293,7 +281,7 @@ namespace Compiler.TreeView
                     {
                         new { name = "Name", value = $"\"{varDecl.Name}\"" }
                     };
-                    
+
                     var varChildren = new List<object> { ConvertTypeToTree(varDecl.Type) };
                     if (varDecl.InitialValue != null)
                     {
@@ -310,10 +298,9 @@ namespace Compiler.TreeView
                         new { name = "Name", value = $"\"{routineDecl.Name}\"" },
                         new { name = "Parameters", value = routineDecl.Parameters.Count.ToString() }
                     };
-                    
+
                     var routineChildren = new List<object>();
-                    
-                    // Parameters
+
                     if (routineDecl.Parameters.Count > 0)
                     {
                         var paramsNode = new Dictionary<string, object>
@@ -326,7 +313,7 @@ namespace Compiler.TreeView
                             },
                             ["children"] = new List<object>()
                         };
-                        
+
                         for (int i = 0; i < routineDecl.Parameters.Count; i++)
                         {
                             ((List<object>)paramsNode["children"]).Add(ConvertParameterToTree(routineDecl.Parameters[i], i));
@@ -334,13 +321,11 @@ namespace Compiler.TreeView
                         routineChildren.Add(paramsNode);
                     }
 
-                    // Return type
                     if (routineDecl.ReturnType != null)
                     {
                         routineChildren.Add(ConvertTypeToTree(routineDecl.ReturnType));
                     }
 
-                    // Body
                     routineChildren.Add(ConvertBodyToTree(routineDecl.Body));
                     node["children"] = routineChildren;
                     break;
@@ -404,7 +389,7 @@ namespace Compiler.TreeView
                     {
                         new { name = "Fields", value = rec.Fields.Count.ToString() }
                     };
-                    
+
                     var fieldChildren = new List<object>();
                     for (int i = 0; i < rec.Fields.Count; i++)
                     {
@@ -433,7 +418,6 @@ namespace Compiler.TreeView
 
             var children = (List<object>)node["children"];
 
-            // Declarations
             if (body.Declarations.Count > 0)
             {
                 var declsNode = new Dictionary<string, object>
@@ -446,7 +430,7 @@ namespace Compiler.TreeView
                     },
                     ["children"] = new List<object>()
                 };
-                
+
                 for (int i = 0; i < body.Declarations.Count; i++)
                 {
                     ((List<object>)declsNode["children"]).Add(ConvertDeclarationToTree(body.Declarations[i], i));
@@ -454,7 +438,6 @@ namespace Compiler.TreeView
                 children.Add(declsNode);
             }
 
-            // Statements
             if (body.Statements.Count > 0)
             {
                 var stmtsNode = new Dictionary<string, object>
@@ -467,7 +450,7 @@ namespace Compiler.TreeView
                     },
                     ["children"] = new List<object>()
                 };
-                
+
                 for (int i = 0; i < body.Statements.Count; i++)
                 {
                     ((List<object>)stmtsNode["children"]).Add(ConvertStatementToTree(body.Statements[i], i));
@@ -503,7 +486,7 @@ namespace Compiler.TreeView
                         new { name = "Else", value = ifStmt.ElseBody.Count.ToString() }
                     };
                     children.Add(ConvertExpressionToTree(ifStmt.Condition));
-                    
+
                     var thenNode = new Dictionary<string, object>
                     {
                         ["type"] = "ThenBody",
@@ -542,7 +525,7 @@ namespace Compiler.TreeView
                         new { name = "Body", value = forLoop.Body.Count.ToString() }
                     };
                     children.Add(ConvertExpressionToTree(forLoop.Range));
-                    
+
                     var forBodyNode = new Dictionary<string, object>
                     {
                         ["type"] = "ForBody",
@@ -641,13 +624,13 @@ namespace Compiler.TreeView
                     break;
 
                 case RangeNode range:
-                    children.Add(new Dictionary<string, object> 
-                    { 
+                    children.Add(new Dictionary<string, object>
+                    {
                         ["type"] = "Start",
                         ["children"] = new List<object> { ConvertExpressionToTree(range.Start) }
                     });
-                    children.Add(new Dictionary<string, object> 
-                    { 
+                    children.Add(new Dictionary<string, object>
+                    {
                         ["type"] = "Property",
                         ["children"] = new List<object> { ConvertExpressionToTree(range.End) }
                     });

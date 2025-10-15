@@ -21,7 +21,6 @@ namespace Compiler
             bool debugMode = false;
             bool hasInvalid = false;
 
-            // Parse command line arguments
             for (int i = 0; i < args.Length; i++)
             {
                 switch (args[i])
@@ -166,7 +165,7 @@ namespace Compiler
         {
             Console.WriteLine("ProgramNode");
             Console.WriteLine($"  Declarations: [{program.Declarations.Count}]");
-            
+
             for (int i = 0; i < program.Declarations.Count; i++)
             {
                 Console.WriteLine($"\n  [{i}] {program.Declarations[i].GetType().Name}");
@@ -255,7 +254,7 @@ namespace Compiler
                 Console.WriteLine($"{indent}  [{i}] {body.Declarations[i].GetType().Name}");
                 PrintDeclaration(body.Declarations[i], indent + "    ");
             }
-            
+
             Console.WriteLine($"{indent}Statements: [{body.Statements.Count}]");
             for (int i = 0; i < body.Statements.Count; i++)
             {

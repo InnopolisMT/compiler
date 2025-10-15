@@ -2,14 +2,11 @@ namespace Compiler.Lexer;
 
 public enum TokenType
 {
-    // Литералы
     tkIntegerLiteral,
     tkRealLiteral,
     tkBoolLiteral,
-    // String,
     tkIdentifier,
 
-    // Ключевые слова
     tkVar,
     tkRealKeyword,
     tkBoolKeyword,
@@ -33,7 +30,6 @@ public enum TokenType
     tkEnd,
     tkPrint,
 
-    // Операторы
     tkPlus,
     tkMinus,
     tkMultiply,
@@ -51,7 +47,6 @@ public enum TokenType
     tkNot,
     tkXor,
 
-    // Символы
     tkDot,
     tkColon,
     tkComma,
@@ -59,9 +54,7 @@ public enum TokenType
     tkRightParen,
     tkLeftBracket,
     tkRightBracket,
-    // Semicolon,
 
-    // Специальные
     tkWhitespace,
     tkEOL,
     tkEOF,
