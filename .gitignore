@@ -176,4 +176,5 @@ node_modules/
 
 # GPPG Generated Parser Files
 src/Compiler/Parser/Generated/
-src/Compiler/ShiftReduceParserCode.cs
+ShiftReduceParserCode.cs
+ast_visualization.html

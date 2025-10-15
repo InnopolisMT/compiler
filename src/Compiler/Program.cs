@@ -10,72 +10,95 @@ namespace Compiler
     {
         static void Main(string[] args)
         {
-            // Default file path (relative to current working directory)
-            string filePath = "/Users/timofeykurstak/compiler/examples/test.imperative";
+            if (args.Length == 0)
+            {
+                PrintHelp();
+                return;
+            }
+
+            string filePath = "";
             bool lexerOnly = false;
             bool debugMode = false;
             bool hasInvalid = false;
 
             // Parse command line arguments
-            if (args.Length > 0)
+            for (int i = 0; i < args.Length; i++)
             {
-                if (args[0] == "--help" || args[0] == "-h")
+                switch (args[i])
                 {
-                    PrintHelp();
-                    return;
-                }
-                if (args[0] == "--lexer-only")
-                {
-                    lexerOnly = true;
-                    if (args.Length > 1)
-                        filePath = args[1];
-                }
-                else if (args[0] == "--debug")
-                {
-                    debugMode = true;
-                    if (args.Length > 1)
-                        filePath = args[1];
-                }
-                else
-                {
-                    filePath = args[0];
-                    // Check for debug flag in second argument
-                    if (args.Length > 1 && args[1] == "--debug")
+                    case "--help":
+                    case "-h":
+                        PrintHelp();
+                        return;
+                    case "--lexer-only":
+                        lexerOnly = true;
+                        break;
+                    case "--debug":
                         debugMode = true;
+                        break;
+                    default:
+                        if (string.IsNullOrEmpty(filePath))
+                            filePath = args[i];
+                        break;
                 }
             }
 
-            // Check if file exists
+            if (string.IsNullOrEmpty(filePath))
+            {
+                Console.Error.WriteLine("Error: File path is required.");
+                PrintHelp();
+                Environment.Exit(1);
+            }
+
             if (!File.Exists(filePath))
             {
                 Console.Error.WriteLine($"Error: File '{filePath}' not found.");
-                Console.Error.WriteLine("Use --help for usage information.");
                 Environment.Exit(1);
             }
 
             try
             {
-                // Read source file
                 string input = File.ReadAllText(filePath);
-                Console.WriteLine($"Compiling: {filePath}");
-                Console.WriteLine(new string('=', 50));
 
                 if (lexerOnly)
                 {
-                    // Lexer-only mode: just tokenize and display tokens
                     var lexer = new LexerClass(input);
                     var token = lexer.NextToken();
 
-                    Console.WriteLine("LEXICAL ANALYSIS:");
-                    while (token.Type != TokenType.tkEOF)
+                    if (debugMode)
                     {
-                        Console.WriteLine(token);
-                        token = lexer.NextToken();
+                        Console.WriteLine("LEXICAL ANALYSIS:");
+                        while (token.Type != TokenType.tkEOF)
+                        {
+                            Console.WriteLine(token);
+                            token = lexer.NextToken();
+                        }
+                    }
+                    else
+                    {
+                        while (token.Type != TokenType.tkEOF)
+                        {
+                            if (token.Type == TokenType.tkInvalid)
+                            {
+                                Console.Error.Write($"{filePath}({token.Span.Line},{token.Span.Start}): ");
+                                Console.ForegroundColor = ConsoleColor.Red;
+                                Console.Error.Write($"\x1b[1mInvalid token:\x1b[0m");
+                                Console.ResetColor();
+                                Console.Error.WriteLine($" '{token.Lexeme}'");
+                                hasInvalid = true;
+                            }
+                            token = lexer.NextToken();
+                        }
+                        if (hasInvalid)
+                        {
+                            Console.Error.WriteLine("Lexical analysis completed with errors.");
+                            Environment.Exit(1);
+                        }
+                        Console.WriteLine("Lexical analysis completed successfully.");
                     }
                 }
                 else
                 {
-                    // Full compilation: lexer + parser
                     var lexer = new LexerClass(input);
                     var token = lexer.NextToken();
                     while (token.Type != TokenType.tkEOF)
@@ -96,36 +119,34 @@ namespace Compiler
                         Console.Error.WriteLine("Errors found during lexical analysis. Aborting parsing.");
                         Environment.Exit(1);
                     }
+
                     lexer = new LexerClass(input);
                     var parser = new ParserFacade(lexer);
-                    
-                    Console.WriteLine("PARSING...");
                     ProgramNode ast = parser.Parse();
-                    
-                    Console.WriteLine("✓ Parsing completed successfully");
-                    Console.WriteLine($"✓ AST contains {ast.Declarations.Count} top-level declarations");
-                    
-                    // Display AST structure
+
                     if (debugMode)
                     {
                         var visualizer = new TreeVisualizer();
                         string html = visualizer.GenerateTreeHtml(ast, filePath);
-
                         File.WriteAllText("ast_visualization.html", html, Encoding.UTF8);
+
+                        Console.WriteLine("LEXICAL ANALYSIS:");
+                        var debugLexer = new LexerClass(input);
+                        var debugToken = debugLexer.NextToken();
+                        while (debugToken.Type != TokenType.tkEOF)
+                        {
+                            Console.WriteLine(debugToken);
+                            debugToken = debugLexer.NextToken();
+                        }
 
                         Console.WriteLine("\n=== DETAILED AST (DEBUG MODE) ===");
                         PrintDetailedAst(ast);
                     }
                     else
                     {
-                        Console.WriteLine("\nAST STRUCTURE:");
-                        PrintAst(ast);
-                        Console.WriteLine("\n💡 Use --debug flag for detailed AST tree");
+                        Console.WriteLine("Compilation completed successfully.");
                     }
                 }
-
-                Console.WriteLine(new string('=', 50));
-                Console.WriteLine("Compilation completed successfully.");
             }
             catch (ParseException ex)
             {
@@ -140,41 +161,6 @@ namespace Compiler
             }
         }
 
-        static void PrintAst(ProgramNode program, int indent = 0)
-        {
-            string indentStr = new string(' ', indent * 2);
-            
-            foreach (var decl in program.Declarations)
-            {
-                switch (decl)
-                {
-                    case VariableDeclarationNode varDecl:
-                        Console.WriteLine($"{indentStr}Variable: {varDecl.Name} : {GetTypeName(varDecl.Type)}" + 
-                            (varDecl.InitialValue != null ? " = <expr>" : ""));
-                        break;
-                    case TypeDeclarationNode typeDecl:
-                        Console.WriteLine($"{indentStr}Type: {typeDecl.Name} = {GetTypeName(typeDecl.Type)}");
-                        break;
-                    case RoutineDeclarationNode routineDecl:
-                        Console.WriteLine($"{indentStr}Routine: {routineDecl.Name}({routineDecl.Parameters.Count} params)" +
-                            (routineDecl.ReturnType != null ? $" : {GetTypeName(routineDecl.ReturnType)}" : ""));
-                        Console.WriteLine($"{indentStr}  Body: {routineDecl.Body.Declarations.Count} decls, {routineDecl.Body.Statements.Count} stmts");
-                        break;
-                }
-            }
-        }
-
-        static string GetTypeName(TypeNode type)
-        {
-            return type switch
-            {
-                PrimitiveTypeNode prim => prim.TypeName,
-                UserTypeNode user => user.TypeName,
-                ArrayTypeNode arr => $"array[...] {GetTypeName(arr.ElementType)}",
-                RecordTypeNode rec => $"record({rec.Fields.Count} fields)",
-                _ => "unknown"
-            };
-        }
 
         static void PrintDetailedAst(ProgramNode program)
         {
@@ -433,23 +419,21 @@ namespace Compiler
             Console.WriteLine("Compiler - Imperative Language Compiler");
             Console.WriteLine();
             Console.WriteLine("Usage:");
-            Console.WriteLine("  Compiler [options] [file_path]");
+            Console.WriteLine("  Compiler <file_path> [options]");
             Console.WriteLine("  Compiler --help");
             Console.WriteLine();
             Console.WriteLine("Arguments:");
-            Console.WriteLine("  file_path    Path to the source file to compile (relative to current directory)");
-            Console.WriteLine("               (default: examples/test.imperative)");
+            Console.WriteLine("  file_path    Path to the source file to compile");
             Console.WriteLine();
             Console.WriteLine("Options:");
             Console.WriteLine("  --help, -h       Show this help message");
-            Console.WriteLine("  --lexer-only     Run only lexical analysis (display tokens)");
-            Console.WriteLine("  --debug          Show detailed AST tree structure");
+            Console.WriteLine("  --lexer-only     Run only lexical analysis");
+            Console.WriteLine("  --debug          Show detailed output (tokens + AST)");
             Console.WriteLine();
             Console.WriteLine("Examples:");
-            Console.WriteLine("  Compiler                                   # Compile default file");
-            Console.WriteLine("  Compiler examples/simple.imperative        # Compile specific file");
-            Console.WriteLine("  Compiler examples/test.imperative --debug  # Detailed AST output");
-            Console.WriteLine("  Compiler --lexer-only examples/test.imperative  # Lexical analysis only");
+            Console.WriteLine("  Compiler examples/test.imperative                    # Basic compilation");
+            Console.WriteLine("  Compiler examples/test.imperative --debug            # Detailed output");
+            Console.WriteLine("  Compiler --lexer-only examples/test.imperative       # Lexical analysis only");
         }
     }
 }
