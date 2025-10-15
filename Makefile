@@ -1,10 +1,12 @@
-.PHONY: help build clean test test-verbose dev format run run-debug run-lexer install
+.PHONY: help build release release-linux release-mac release-win clean test test-verbose dev format run run-debug run-lexer install
 
-# Default target
 help:
 	@echo "🔧 Compiler Project - Available commands:"
 	@echo ""
-	@echo "  make build                    - Build the project"
+	@echo "  make build                    - Build the project (Debug)"
+	@echo "  make release                  - Build release version (macOS)"
+	@echo "  make release-linux            - Build release version (Linux)"
+	@echo "  make release-win              - Build release version (Windows)"
 	@echo "  make clean                    - Clean build artifacts"
 	@echo "  make test                     - Run all tests"
 	@echo "  make test-verbose             - Run tests with detailed output"
@@ -21,30 +23,50 @@ help:
 	@echo "  make run-lexer f=examples/test.imperative"
 	@echo ""
 
-# Build the project
 build:
-	@echo "🔨 Building project..."
+	@echo "🔨 Building project (Debug)..."
 	dotnet build Compiler.sln
 
-# Clean build artifacts
+release:
+	@echo "🚀 Building release version for macOS..."
+	dotnet build Compiler.sln --configuration Release
+	@echo "📦 Publishing single-file executable..."
+	dotnet publish src/Compiler/Compiler.csproj --configuration Release --output ./release/macos --runtime osx-x64
+	@echo "✅ macOS release build complete!"
+	@echo "📁 Executable location: ./release/macos/Compiler"
+
+release-linux:
+	@echo "🚀 Building release version for Linux..."
+	dotnet build Compiler.sln --configuration Release
+	@echo "📦 Publishing single-file executable..."
+	dotnet publish src/Compiler/Compiler.csproj --configuration Release --output ./release/linux --runtime linux-x64
+	@echo "✅ Linux release build complete!"
+	@echo "📁 Executable location: ./release/linux/Compiler"
+
+release-win:
+	@echo "🚀 Building release version for Windows..."
+	dotnet build Compiler.sln --configuration Release
+	@echo "📦 Publishing single-file executable..."
+	dotnet publish src/Compiler/Compiler.csproj --configuration Release --output ./release/windows --runtime win-x64
+	@echo "✅ Windows release build complete!"
+	@echo "📁 Executable location: ./release/windows/Compiler.exe"
+
 clean:
 	@echo "🧹 Cleaning..."
 	dotnet clean Compiler.sln
 	@find . -type d -name "bin" -exec rm -rf {} + 2>/dev/null || true
 	@find . -type d -name "obj" -exec rm -rf {} + 2>/dev/null || true
+	@rm -rf ./release 2>/dev/null || true
 	@echo "✅ Clean complete"
 
-# Run all tests
 test:
 	@echo "🧪 Running tests..."
 	dotnet test Compiler.sln --verbosity minimal
 
-# Run tests with verbose output
 test-verbose:
 	@echo "🧪 Running tests (verbose)..."
 	dotnet test Compiler.sln --verbosity detailed
 
-# Development workflow: restore, build, test
 dev:
 	@echo "🔧 Development workflow..."
 	@echo "📦 Restoring packages..."
@@ -55,12 +77,10 @@ dev:
 	dotnet test Compiler.sln --verbosity minimal
 	@echo "✅ Development workflow complete!"
 
-# Format code
 format:
 	@echo "✨ Formatting code..."
 	dotnet format Compiler.sln
 
-# Run compiler with file (usage: make run f=file.imperative)
 run:
 	@if [ -z "$(f)" ]; then \
 		echo "❌ Error: f parameter is required"; \
@@ -71,7 +91,6 @@ run:
 	@echo "🚀 Running compiler with file: $(f)"; \
 	dotnet run --project src/Compiler/Compiler.csproj -- "$(f)"
 
-# Run compiler with debug output (usage: make run-debug f=file.imperative)
 run-debug:
 	@if [ -z "$(f)" ]; then \
 		echo "❌ Error: f parameter is required"; \
