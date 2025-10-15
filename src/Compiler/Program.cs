@@ -1,6 +1,8 @@
 ﻿using Compiler.Lexer;
 using Compiler.Parser;
 using Compiler.AST;
+using Compiler.TreeView;
+using System.Text;
 
 namespace Compiler
 {
@@ -106,6 +108,11 @@ namespace Compiler
                     // Display AST structure
                     if (debugMode)
                     {
+                        var visualizer = new TreeVisualizer();
+                        string html = visualizer.GenerateTreeHtml(ast, filePath);
+
+                        File.WriteAllText("ast_visualization.html", html, Encoding.UTF8);
+
                         Console.WriteLine("\n=== DETAILED AST (DEBUG MODE) ===");
                         PrintDetailedAst(ast);
                     }
