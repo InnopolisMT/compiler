@@ -12,16 +12,18 @@ type IntArray is array[5] integer
 
 routine main ()
     var arr : IntArray is [1, 2, 3, 4, 5]
+    var age : integer is 300000
 
-    person.name:=2351.1110
-    person.age:=300000
-    for i in person.age .. 50 loop
+    for i in age .. 50 loop
         print i
     end
-    if (person.age = 5) then
+    
+    if (age = 5) then
         print 5
     end
+    
     for i in 1 .. 5 loop
         print arr[i]
     end
 end
+

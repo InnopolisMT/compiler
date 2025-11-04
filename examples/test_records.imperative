@@ -1,0 +1,14 @@
+type Person is record
+    var age : integer
+    var name : integer
+end
+
+routine main()
+    var p : Person
+    
+    p.age := 100
+    p.name := 200
+    
+    print p.age
+end
+

@@ -8,7 +8,6 @@
 %YYSTYPE object
 %YYLTYPE Compiler.Parser.LexLocation
 
-// Token definitions from our lexer
 %token tkIntegerLiteral tkRealLiteral tkBoolLiteral tkIdentifier
 %token tkVar tkRealKeyword tkBoolKeyword tkIntegerKeyword tkType tkIs
 %token tkIf tkThen tkElse tkWhile tkFor tkIn tkRange tkLoop tkReverse
@@ -29,14 +28,9 @@
 %right tkNot UNARY_MINUS
 %left tkDot tkLeftBracket
 
-// Start symbol
 %start Program
 
 %%
-
-// ============================================================================
-// Program
-// ============================================================================
 
 Program
     : DeclarationList
@@ -70,9 +64,6 @@ Declaration
     | RoutineDeclaration
     ;
 
-// ============================================================================
-// Variable declaration: var x : integer is 42
-// ============================================================================
 
 VariableDeclaration
     : tkVar tkIdentifier tkColon Type tkIs Expression
@@ -94,9 +85,6 @@ VariableDeclaration
         }
     ;
 
-// ============================================================================
-// Type declaration: type IntArray is array[5] integer
-// ============================================================================
 
 TypeDeclaration
     : tkType tkIdentifier tkIs Type
@@ -169,45 +157,42 @@ VariableDeclarationList
         }
     ;
 
-// ============================================================================
-// Routine declaration: routine main() ... end
-// ============================================================================
 
 RoutineDeclaration
-    : tkRoutine tkIdentifier tkLeftParen ParameterList tkRightParen tkColon Type Body tkEnd
+    : tkRoutine tkIdentifier tkLeftParen ParameterList tkRightParen tkColon Type tkIs Body tkEnd
         {
             $$ = new RoutineDeclarationNode
             {
                 Name = (string)$2,
                 Parameters = (List<ParameterNode>)$4,
                 ReturnType = (TypeNode)$7,
-                Body = (BodyNode)$8
+                Body = (BodyNode)$9
             };
         }
-    | tkRoutine tkIdentifier tkLeftParen ParameterList tkRightParen Body tkEnd
+    | tkRoutine tkIdentifier tkLeftParen ParameterList tkRightParen tkIs Body tkEnd
         {
             $$ = new RoutineDeclarationNode
             {
                 Name = (string)$2,
                 Parameters = (List<ParameterNode>)$4,
-                Body = (BodyNode)$6
+                Body = (BodyNode)$7
             };
         }
-    | tkRoutine tkIdentifier tkLeftParen tkRightParen tkColon Type Body tkEnd
+    | tkRoutine tkIdentifier tkLeftParen tkRightParen tkColon Type tkIs Body tkEnd
         {
             $$ = new RoutineDeclarationNode
             {
                 Name = (string)$2,
                 ReturnType = (TypeNode)$6,
-                Body = (BodyNode)$7
+                Body = (BodyNode)$8
             };
         }
-    | tkRoutine tkIdentifier tkLeftParen tkRightParen Body tkEnd
+    | tkRoutine tkIdentifier tkLeftParen tkRightParen tkIs Body tkEnd
         {
             $$ = new RoutineDeclarationNode
             {
                 Name = (string)$2,
-                Body = (BodyNode)$5
+                Body = (BodyNode)$6
             };
         }
     ;
@@ -257,9 +242,6 @@ SimpleBody
         }
     ;
 
-// ============================================================================
-// Statements
-// ============================================================================
 
 StatementList
     : Statement
@@ -376,9 +358,6 @@ PrintStatement
         }
     ;
 
-// ============================================================================
-// Expressions
-// ============================================================================
 
 Expression
     : Primary

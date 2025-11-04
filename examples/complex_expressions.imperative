@@ -1,0 +1,26 @@
+var x : integer is 10
+var y : integer is 20
+var result : integer is 0
+
+routine calculate(a : integer, b : integer) : integer
+    var temp : integer is 0
+    temp := (a + b) * 2 - 5
+    return temp
+end
+
+routine main()
+    result := x + y * 2
+    
+    if (x > 5 and y < 30) then
+        print x + y
+    else
+        print x - y
+    end
+    
+    for i in 1 .. 10 loop
+        if (i = 5) then
+            print i * 2
+        end
+    end
+end
+
