@@ -146,7 +146,7 @@ public class SymbolTableTests
         // Arrange
         var symbolTable = new SymbolTable();
         symbolTable.Enter("x", new Symbol("x", SymbolKind.Variable, new PrimitiveType(PrimitiveKind.Integer)));
-        
+
         symbolTable.PushScope("inner");
         symbolTable.Enter("x", new Symbol("x", SymbolKind.Variable, new PrimitiveType(PrimitiveKind.Real)));
 
@@ -284,7 +284,7 @@ public class SymbolTableTests
         // Arrange
         var globalScope = new Scope(null, "Global");
         globalScope.Define("x", new Symbol("x", SymbolKind.Variable, new PrimitiveType(PrimitiveKind.Integer)));
-        
+
         var innerScope = new Scope(globalScope, "Inner");
 
         // Act

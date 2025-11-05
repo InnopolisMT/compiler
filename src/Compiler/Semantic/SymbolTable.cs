@@ -3,13 +3,13 @@ namespace Compiler.Semantic;
 public class SymbolTable
 {
     private Scope _currentScope;
-    
+
     private readonly Stack<Scope> _scopeStack;
-    
+
     public Scope GlobalScope { get; private set; }
-    
+
     public Scope CurrentScope => _currentScope;
-    
+
     public int CurrentLevel => _currentScope.Level;
 
     public SymbolTable()
@@ -18,7 +18,7 @@ public class SymbolTable
         _currentScope = GlobalScope;
         _scopeStack = new Stack<Scope>();
         _scopeStack.Push(GlobalScope);
-        
+
         InitializeBuiltInTypes();
     }
 
@@ -57,7 +57,7 @@ public class SymbolTable
         {
             return false;
         }
-        
+
         _scopeStack.Pop();
         _currentScope = _scopeStack.Peek();
         return true;
@@ -97,21 +97,21 @@ public class SymbolTable
         var result = new System.Text.StringBuilder();
         result.AppendLine("Symbol Table Hierarchy:");
         result.AppendLine("======================");
-        
+
         var scopes = _scopeStack.Reverse().ToList();
         for (int i = 0; i < scopes.Count; i++)
         {
             var scope = scopes[i];
             var indent = new string(' ', scope.Level * 2);
             result.AppendLine($"{indent}{scope}");
-            
+
             var symbols = scope.GetSymbols();
             foreach (var kvp in symbols)
             {
                 result.AppendLine($"{indent}  - {kvp.Value}");
             }
         }
-        
+
         return result.ToString();
     }
 }

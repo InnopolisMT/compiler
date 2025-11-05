@@ -3,11 +3,11 @@ namespace Compiler.Semantic;
 public class Scope
 {
     public Scope? Parent { get; private set; }
-    
+
     private readonly Dictionary<string, Symbol> _symbols;
-    
+
     public string? Name { get; set; }
-    
+
     public int Level { get; private set; }
 
     public Scope(Scope? parent = null, string? name = null)
@@ -24,7 +24,7 @@ public class Scope
         {
             return false;
         }
-        
+
         _symbols[name] = symbol;
         return true;
     }
@@ -40,7 +40,7 @@ public class Scope
         {
             return symbol;
         }
-        
+
         return Parent?.Resolve(name);
     }
 

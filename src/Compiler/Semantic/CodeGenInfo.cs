@@ -34,7 +34,7 @@ public class CodeGenInfo
             parts.Add("Global");
         if (IsLocal)
             parts.Add("Local");
-        
+
         return parts.Count > 0 ? string.Join(", ", parts) : "Empty";
     }
 }

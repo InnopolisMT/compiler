@@ -1,6 +1,7 @@
 ﻿using Compiler.Lexer;
 using Compiler.Parser;
 using Compiler.AST;
+using Compiler.Semantic;
 
 namespace Compiler
 {
@@ -134,6 +135,9 @@ namespace Compiler
             var parser = new ParserFacade(lexer);
             ProgramNode ast = parser.Parse();
 
+            var semanticAnalyzer = new SemanticAnalyzer();
+            semanticAnalyzer.Analyze(ast);
+
             if (options.DebugMode)
             {
                 DebugOutput.GenerateAndPrintDebugInfo(input, options.FilePath, ast);
@@ -194,17 +198,10 @@ namespace Compiler
         }
     }
 
-    internal class CompilerOptions
+    internal class CompilerOptions(string filePath, bool lexerOnly, bool debugMode)
     {
-        public string FilePath { get; }
-        public bool LexerOnly { get; }
-        public bool DebugMode { get; }
-
-        public CompilerOptions(string filePath, bool lexerOnly, bool debugMode)
-        {
-            FilePath = filePath;
-            LexerOnly = lexerOnly;
-            DebugMode = debugMode;
-        }
+        public string FilePath { get; } = filePath;
+        public bool LexerOnly { get; } = lexerOnly;
+        public bool DebugMode { get; } = debugMode;
     }
 }
