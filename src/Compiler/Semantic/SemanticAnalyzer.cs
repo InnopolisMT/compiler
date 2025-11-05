@@ -969,22 +969,59 @@ public class SemanticAnalyzer
         
         for (int i = 0; i < call.Arguments.Count; i++)
         {
-            var argType = DeriveType(call.Arguments[i]);
-            var paramType = ResolveTypeNode(parameters[i].Type);
-            
-            if (argType != null && paramType != null && 
-                !argType.IsCompatibleWith(paramType) && !paramType.IsCompatibleWith(argType))
-            {
-                var commonType = PrimitiveType.GetCommonType(argType, paramType);
-                if (commonType == null)
-                {
-                    AddError(call.Arguments[i].Line, call.Arguments[i].Column, 
-                        $"Argument {i + 1} type mismatch: expected {paramType.Name}, got {argType.Name}");
-                }
-            }
+            CheckArgumentType(call.Arguments[i], parameters[i], i + 1, call.RoutineName);
         }
         
         return symbol.Type;
+    }
+    
+    private void CheckArgumentType(ExpressionNode argument, ParameterNode parameter, int argumentIndex, string routineName)
+    {
+        var argType = DeriveType(argument);
+        var paramType = ResolveTypeNode(parameter.Type);
+        
+        if (argType == null || paramType == null)
+        {
+            return;
+        }
+        
+        if (argType.IsCompatibleWith(paramType))
+        {
+            return;
+        }
+        
+        if (CanConvertArgumentToParameterType(argType, paramType))
+        {
+            return;
+        }
+        
+        AddError(argument.Line, argument.Column, 
+            $"Argument {argumentIndex} type mismatch in call to '{routineName}': expected {paramType.Name}, got {argType.Name}");
+    }
+    
+    private bool CanConvertArgumentToParameterType(Type argType, Type paramType)
+    {
+        if (argType is PrimitiveType argPrim && paramType is PrimitiveType paramPrim)
+        {
+            if (argPrim.Kind == PrimitiveKind.Integer && paramPrim.Kind == PrimitiveKind.Real)
+            {
+                return true;
+            }
+            
+            if ((argPrim.Kind == PrimitiveKind.Integer && paramPrim.Kind == PrimitiveKind.Boolean) ||
+                (argPrim.Kind == PrimitiveKind.Boolean && paramPrim.Kind == PrimitiveKind.Integer))
+            {
+                return true;
+            }
+        }
+        
+        var commonType = PrimitiveType.GetCommonType(argType, paramType);
+        if (commonType != null && commonType.Equals(paramType))
+        {
+            return true;
+        }
+        
+        return false;
     }
     
     private Type? CheckRange(RangeNode range)
