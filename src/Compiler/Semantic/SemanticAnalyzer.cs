@@ -167,6 +167,8 @@ public class SemanticAnalyzer
     
     private void ProcessTypeDeclaration(TypeDeclarationNode typeDecl)
     {
+        AnnotateScope(typeDecl);
+        
         if (_symbolTable.IsDefinedLocally(typeDecl.Name))
         {
             AddError(typeDecl.Line, typeDecl.Column, $"Type '{typeDecl.Name}' is already defined in this scope");
@@ -191,8 +193,12 @@ public class SemanticAnalyzer
         
         var symbol = new Symbol(typeDecl.Name, SymbolKind.Type, type)
         {
-            DeclarationNode = typeDecl
+            DeclarationNode = typeDecl,
+            Scope = _symbolTable.CurrentScope
         };
+        
+        symbol.CodeGenInfo!.IsGlobal = _symbolTable.CurrentLevel == 0;
+        symbol.CodeGenInfo!.IsLocal = _symbolTable.CurrentLevel > 0;
         
         if (!_symbolTable.Enter(typeDecl.Name, symbol))
         {
@@ -202,6 +208,8 @@ public class SemanticAnalyzer
     
     private void ProcessVariableDeclaration(VariableDeclarationNode varDecl)
     {
+        AnnotateScope(varDecl);
+        
         if (_symbolTable.IsDefinedLocally(varDecl.Name))
         {
             AddError(varDecl.Line, varDecl.Column, $"Variable '{varDecl.Name}' is already defined in this scope");
@@ -216,8 +224,12 @@ public class SemanticAnalyzer
         
         var symbol = new Symbol(varDecl.Name, SymbolKind.Variable, type)
         {
-            DeclarationNode = varDecl
+            DeclarationNode = varDecl,
+            Scope = _symbolTable.CurrentScope
         };
+        
+        symbol.CodeGenInfo!.IsGlobal = _symbolTable.CurrentLevel == 0;
+        symbol.CodeGenInfo!.IsLocal = _symbolTable.CurrentLevel > 0;
         
         if (!_symbolTable.Enter(varDecl.Name, symbol))
         {
@@ -227,6 +239,8 @@ public class SemanticAnalyzer
     
     private void ProcessRoutineDeclaration(RoutineDeclarationNode routineDecl)
     {
+        AnnotateScope(routineDecl);
+        
         if (_symbolTable.IsDefinedLocally(routineDecl.Name))
         {
             AddError(routineDecl.Line, routineDecl.Column, $"Routine '{routineDecl.Name}' is already defined in this scope");
@@ -245,10 +259,14 @@ public class SemanticAnalyzer
         
         var symbol = new Symbol(routineDecl.Name, SymbolKind.Routine, returnType)
         {
-            DeclarationNode = routineDecl
+            DeclarationNode = routineDecl,
+            Scope = _symbolTable.CurrentScope
         };
         symbol.Attributes["Parameters"] = routineDecl.Parameters;
         symbol.Attributes["ReturnType"] = routineDecl.ReturnType;
+        
+        symbol.CodeGenInfo!.IsGlobal = _symbolTable.CurrentLevel == 0;
+        symbol.CodeGenInfo!.IsLocal = _symbolTable.CurrentLevel > 0;
         
         if (!_symbolTable.Enter(routineDecl.Name, symbol))
         {
@@ -262,8 +280,10 @@ public class SemanticAnalyzer
         }
     }
     
-    private void ProcessParameter(ParameterNode parameter)
+    private void ProcessParameter(ParameterNode parameter, int parameterIndex)
     {
+        AnnotateScope(parameter);
+        
         if (_symbolTable.IsDefinedLocally(parameter.Name))
         {
             AddError(parameter.Line, parameter.Column, $"Parameter '{parameter.Name}' is already defined");
@@ -278,8 +298,12 @@ public class SemanticAnalyzer
         
         var symbol = new Symbol(parameter.Name, SymbolKind.Parameter, type)
         {
-            DeclarationNode = parameter
+            DeclarationNode = parameter,
+            Scope = _symbolTable.CurrentScope
         };
+        
+        symbol.CodeGenInfo!.IsParameter = true;
+        symbol.CodeGenInfo!.ParameterIndex = parameterIndex;
         
         if (!_symbolTable.Enter(parameter.Name, symbol))
         {
@@ -399,10 +423,42 @@ public class SemanticAnalyzer
     
     private void Pass2_TypeChecking(ProgramNode program)
     {
+        program.Scope = _symbolTable.GlobalScope;
+        program.ScopeLevel = _symbolTable.CurrentLevel;
+        
         foreach (var declaration in program.Declarations)
         {
             CheckDeclaration(declaration);
         }
+        
+        ComputeGlobalVariableAddresses(program);
+    }
+    
+    private void ComputeGlobalVariableAddresses(ProgramNode program)
+    {
+        int globalAddress = 0;
+        foreach (var declaration in program.Declarations)
+        {
+            if (declaration is VariableDeclarationNode varDecl)
+            {
+                var symbol = _symbolTable.LookupLocal(varDecl.Name);
+                if (symbol != null && symbol.CodeGenInfo != null && symbol.CodeGenInfo.IsGlobal)
+                {
+                    symbol.CodeGenInfo.Address = globalAddress;
+                    var type = ResolveTypeNode(varDecl.Type);
+                    if (type != null)
+                    {
+                        globalAddress += ComputeTypeSize(type);
+                    }
+                }
+            }
+        }
+    }
+    
+    private void AnnotateScope(AstNode node)
+    {
+        node.Scope = _symbolTable.CurrentScope;
+        node.ScopeLevel = _symbolTable.CurrentLevel;
     }
     
     private void CheckDeclaration(DeclarationNode declaration)
@@ -421,6 +477,8 @@ public class SemanticAnalyzer
     
     private void CheckVariableDeclaration(VariableDeclarationNode varDecl)
     {
+        AnnotateScope(varDecl);
+        
         if (_symbolTable.IsDefinedLocally(varDecl.Name))
         {
             AddError(varDecl.Line, varDecl.Column, $"Variable '{varDecl.Name}' is already defined in this scope");
@@ -435,8 +493,12 @@ public class SemanticAnalyzer
         
         var symbol = new Symbol(varDecl.Name, SymbolKind.Variable, varType)
         {
-            DeclarationNode = varDecl
+            DeclarationNode = varDecl,
+            Scope = _symbolTable.CurrentScope
         };
+        
+        symbol.CodeGenInfo!.IsGlobal = _symbolTable.CurrentLevel == 0;
+        symbol.CodeGenInfo!.IsLocal = _symbolTable.CurrentLevel > 0;
         
         if (!_symbolTable.Enter(varDecl.Name, symbol))
         {
@@ -458,34 +520,90 @@ public class SemanticAnalyzer
                 }
             }
         }
+        
+        varDecl.CodeGenInfo = symbol.CodeGenInfo;
     }
     
     private void CheckRoutineDeclaration(RoutineDeclarationNode routineDecl)
     {
+        AnnotateScope(routineDecl);
+        
         _currentRoutine = routineDecl;
         _symbolTable.PushScope(routineDecl.Name);
         
-        foreach (var parameter in routineDecl.Parameters)
+        int parameterOffset = 0;
+        for (int i = 0; i < routineDecl.Parameters.Count; i++)
         {
+            var parameter = routineDecl.Parameters[i];
+            AnnotateScope(parameter);
+            
             var type = ResolveTypeNode(parameter.Type);
             if (type != null)
             {
                 var paramSymbol = new Symbol(parameter.Name, SymbolKind.Parameter, type)
                 {
-                    DeclarationNode = parameter
+                    DeclarationNode = parameter,
+                    Scope = _symbolTable.CurrentScope
                 };
+                paramSymbol.CodeGenInfo!.IsParameter = true;
+                paramSymbol.CodeGenInfo!.ParameterIndex = i;
+                paramSymbol.CodeGenInfo!.Offset = parameterOffset;
+                parameterOffset += ComputeTypeSize(type);
                 _symbolTable.Enter(parameter.Name, paramSymbol);
             }
         }
         
         CheckBody(routineDecl.Body);
         
+        ComputeLocalVariableOffsets(routineDecl.Body);
+        
         _symbolTable.PopScope();
         _currentRoutine = null;
     }
     
+    private void ComputeLocalVariableOffsets(BodyNode body)
+    {
+        int localOffset = 0;
+        foreach (var declaration in body.Declarations)
+        {
+            if (declaration is VariableDeclarationNode varDecl)
+            {
+                var symbol = _symbolTable.LookupLocal(varDecl.Name);
+                if (symbol != null && symbol.CodeGenInfo != null)
+                {
+                    symbol.CodeGenInfo.Offset = localOffset;
+                    symbol.CodeGenInfo.FrameOffset = localOffset;
+                    var type = ResolveTypeNode(varDecl.Type);
+                    if (type != null)
+                    {
+                        localOffset += ComputeTypeSize(type);
+                    }
+                }
+            }
+        }
+    }
+    
+    private int ComputeTypeSize(Type type)
+    {
+        return type switch
+        {
+            PrimitiveType prim => prim.Kind switch
+            {
+                PrimitiveKind.Integer => 4,
+                PrimitiveKind.Real => 8,
+                PrimitiveKind.Boolean => 1,
+                _ => 4
+            },
+            ArrayType arr => arr.Size * ComputeTypeSize(arr.ElementType),
+            RecordType rec => rec.Fields.Values.Sum(fieldType => ComputeTypeSize(fieldType)),
+            _ => 4
+        };
+    }
+    
     private void CheckBody(BodyNode body)
     {
+        AnnotateScope(body);
+        
         foreach (var declaration in body.Declarations)
         {
             CheckDeclaration(declaration);
@@ -499,6 +617,8 @@ public class SemanticAnalyzer
     
     private void CheckStatement(StatementNode statement)
     {
+        AnnotateScope(statement);
+        
         switch (statement)
         {
             case AssignmentNode assign:
@@ -632,6 +752,8 @@ public class SemanticAnalyzer
     
     private void CheckForLoop(ForLoopNode forLoop)
     {
+        AnnotateScope(forLoop);
+        
         var rangeType = DeriveType(forLoop.Range);
         if (rangeType == null)
         {
@@ -650,8 +772,10 @@ public class SemanticAnalyzer
         var loopVarSymbol = new Symbol(forLoop.Variable, SymbolKind.Variable, 
             new PrimitiveType(PrimitiveKind.Integer))
         {
-            DeclarationNode = forLoop
+            DeclarationNode = forLoop,
+            Scope = _symbolTable.CurrentScope
         };
+        loopVarSymbol.CodeGenInfo!.IsLocal = true;
         _symbolTable.Enter(forLoop.Variable, loopVarSymbol);
         
         foreach (var stmt in forLoop.Body)
@@ -725,6 +849,8 @@ public class SemanticAnalyzer
 
     private Type? CheckExpression(ExpressionNode expression)
     {
+        AnnotateScope(expression);
+        
         Type? type = expression switch
         {
             IntegerLiteralNode intLit => new PrimitiveType(PrimitiveKind.Integer),
@@ -760,6 +886,7 @@ public class SemanticAnalyzer
         
         id.Symbol = symbol;
         id.Type = symbol.Type;
+        id.CodeGenInfo = symbol.CodeGenInfo;
         return symbol.Type;
     }
     
