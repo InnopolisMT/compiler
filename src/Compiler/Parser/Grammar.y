@@ -326,6 +326,23 @@ IfStatement
                 ElseBody = ((BodyNode)$8).Statements
             };
         }
+    | tkIf Expression tkThen Body tkEnd
+        {
+            $$ = new IfStatementNode
+            {
+                Condition = (ExpressionNode)$2,
+                ThenBody = ((BodyNode)$4).Statements
+            };
+        }
+    | tkIf Expression tkThen Body tkElse Body tkEnd
+        {
+            $$ = new IfStatementNode
+            {
+                Condition = (ExpressionNode)$2,
+                ThenBody = ((BodyNode)$4).Statements,
+                ElseBody = ((BodyNode)$6).Statements
+            };
+        }
     ;
 
 WhileLoop
@@ -335,6 +352,14 @@ WhileLoop
             {
                 Condition = (ExpressionNode)$3,
                 Body = ((BodyNode)$6).Statements
+            };
+        }
+    | tkWhile Expression tkLoop Body tkEnd
+        {
+            $$ = new WhileLoopNode
+            {
+                Condition = (ExpressionNode)$2,
+                Body = ((BodyNode)$4).Statements
             };
         }
     ;
