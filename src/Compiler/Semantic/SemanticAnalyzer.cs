@@ -854,6 +854,16 @@ public class SemanticAnalyzer
             return null;
         }
         
+        if (symbol.DeclarationNode is RoutineDeclarationNode routineDecl)
+        {
+            if (!IsFullDeclaration(routineDecl))
+            {
+                AddError(call.Line, call.Column, 
+                    $"Routine '{call.RoutineName}' is forward declared but has no full definition");
+                return symbol.Type;
+            }
+        }
+        
         var parameters = symbol.Attributes.GetValueOrDefault("Parameters") as List<ParameterNode>;
         if (parameters == null)
         {
