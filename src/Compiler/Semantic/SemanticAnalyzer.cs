@@ -1,5 +1,6 @@
 using Compiler.AST;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Compiler.Semantic;
 
@@ -8,6 +9,8 @@ public class SemanticAnalyzer
     private readonly SymbolTable _symbolTable;
     private readonly List<SemanticError> _errors;
     private RoutineDeclarationNode? _currentRoutine;
+    private readonly HashSet<string> _typeResolutionStack;
+    private readonly Dictionary<string, RoutineDeclarationNode> _forwardDeclarations;
     
     public IReadOnlyList<SemanticError> Errors => _errors;
     public bool HasErrors => _errors.Count > 0;
@@ -17,6 +20,8 @@ public class SemanticAnalyzer
     {
         _symbolTable = new SymbolTable();
         _errors = new List<SemanticError>();
+        _typeResolutionStack = new HashSet<string>();
+        _forwardDeclarations = new Dictionary<string, RoutineDeclarationNode>();
     }
     
     public string FormatErrors(string? fileName = null)
@@ -34,6 +39,8 @@ public class SemanticAnalyzer
         _symbolTable.Reset();
         _errors.Clear();
         _currentRoutine = null;
+        _typeResolutionStack.Clear();
+        _forwardDeclarations.Clear();
         
         Pass1_Declarations(program);
         
@@ -45,28 +52,117 @@ public class SemanticAnalyzer
     
     private void Pass1_Declarations(ProgramNode program)
     {
+        Pass1_TypeDeclarations(program);
+        Pass1_RoutineDeclarations(program);
+        Pass1_CheckForwardDeclarations(program);
+    }
+    
+    private void Pass1_TypeDeclarations(ProgramNode program)
+    {
         foreach (var declaration in program.Declarations)
         {
-            ProcessDeclaration(declaration);
+            if (declaration is TypeDeclarationNode typeDecl)
+            {
+                ProcessTypeDeclaration(typeDecl);
+            }
         }
     }
     
-    private void ProcessDeclaration(DeclarationNode declaration)
+    private void Pass1_RoutineDeclarations(ProgramNode program)
     {
-        switch (declaration)
+        foreach (var declaration in program.Declarations)
         {
-            case TypeDeclarationNode typeDecl:
-                ProcessTypeDeclaration(typeDecl);
-                break;
-                
-            case VariableDeclarationNode varDecl:
-                ProcessVariableDeclaration(varDecl);
-                break;
-                
-            case RoutineDeclarationNode routineDecl:
+            if (declaration is RoutineDeclarationNode routineDecl)
+            {
                 ProcessRoutineDeclaration(routineDecl);
-                break;
+            }
         }
+    }
+    
+    private void Pass1_CheckForwardDeclarations(ProgramNode program)
+    {
+        foreach (var forwardName in _forwardDeclarations.Keys)
+        {
+            var forwardDecl = _forwardDeclarations[forwardName];
+            var fullDecl = program.Declarations
+                .OfType<RoutineDeclarationNode>()
+                .FirstOrDefault(r => r.Name == forwardName && IsFullDeclaration(r));
+            
+            if (fullDecl == null)
+            {
+                AddError(forwardDecl.Line, forwardDecl.Column, 
+                    $"Forward declaration of routine '{forwardName}' has no full definition");
+                continue;
+            }
+            
+            if (!SignaturesMatch(forwardDecl, fullDecl))
+            {
+                AddError(fullDecl.Line, fullDecl.Column, 
+                    $"Signature of routine '{forwardName}' does not match forward declaration");
+            }
+        }
+    }
+    
+    private bool IsFullDeclaration(RoutineDeclarationNode routine)
+    {
+        return routine.Body != null && 
+               (routine.Body.Statements.Count > 0 || routine.Body.Declarations.Count > 0);
+    }
+    
+    private bool SignaturesMatch(RoutineDeclarationNode forward, RoutineDeclarationNode full)
+    {
+        if (forward.Parameters.Count != full.Parameters.Count)
+        {
+            return false;
+        }
+        
+        for (int i = 0; i < forward.Parameters.Count; i++)
+        {
+            var forwardParam = forward.Parameters[i];
+            var fullParam = full.Parameters[i];
+            
+            if (forwardParam.Name != fullParam.Name)
+            {
+                return false;
+            }
+            
+            var forwardParamType = ResolveTypeNode(forwardParam.Type);
+            var fullParamType = ResolveTypeNode(fullParam.Type);
+            
+            if (forwardParamType == null || fullParamType == null)
+            {
+                return false;
+            }
+            
+            if (!forwardParamType.Equals(fullParamType))
+            {
+                return false;
+            }
+        }
+        
+        Type? forwardReturnType = null;
+        if (forward.ReturnType != null)
+        {
+            forwardReturnType = ResolveTypeNode(forward.ReturnType);
+        }
+        
+        Type? fullReturnType = null;
+        if (full.ReturnType != null)
+        {
+            fullReturnType = ResolveTypeNode(full.ReturnType);
+        }
+        
+        if (forwardReturnType == null && fullReturnType == null)
+        {
+            return true;
+        }
+        
+        if (forwardReturnType == null || fullReturnType == null)
+        {
+            return false;
+        }
+        
+        return forwardReturnType.Equals(fullReturnType);
     }
     
     private void ProcessTypeDeclaration(TypeDeclarationNode typeDecl)
@@ -77,7 +173,17 @@ public class SemanticAnalyzer
             return;
         }
         
+        if (_typeResolutionStack.Contains(typeDecl.Name))
+        {
+            AddError(typeDecl.Line, typeDecl.Column, 
+                $"Circular type definition detected for type '{typeDecl.Name}'");
+            return;
+        }
+        
+        _typeResolutionStack.Add(typeDecl.Name);
         var type = ResolveTypeNode(typeDecl.Type);
+        _typeResolutionStack.Remove(typeDecl.Name);
+        
         if (type == null)
         {
             return;
@@ -142,6 +248,7 @@ public class SemanticAnalyzer
             DeclarationNode = routineDecl
         };
         symbol.Attributes["Parameters"] = routineDecl.Parameters;
+        symbol.Attributes["ReturnType"] = routineDecl.ReturnType;
         
         if (!_symbolTable.Enter(routineDecl.Name, symbol))
         {
@@ -149,18 +256,10 @@ public class SemanticAnalyzer
             return;
         }
         
-        _currentRoutine = routineDecl;
-        _symbolTable.PushScope(routineDecl.Name);
-        
-        foreach (var parameter in routineDecl.Parameters)
+        if (!IsFullDeclaration(routineDecl))
         {
-            ProcessParameter(parameter);
+            _forwardDeclarations[routineDecl.Name] = routineDecl;
         }
-        
-        ProcessBody(routineDecl.Body);
-        
-        _symbolTable.PopScope();
-        _currentRoutine = null;
     }
     
     private void ProcessParameter(ParameterNode parameter)
@@ -188,13 +287,6 @@ public class SemanticAnalyzer
         }
     }
     
-    private void ProcessBody(BodyNode body)
-    {
-        foreach (var declaration in body.Declarations)
-        {
-            ProcessDeclaration(declaration);
-        }
-    }
     
     private Type? ResolveTypeNode(TypeNode typeNode)
     {
@@ -222,6 +314,13 @@ public class SemanticAnalyzer
     
     private Type? ResolveUserType(UserTypeNode user)
     {
+        if (_typeResolutionStack.Contains(user.TypeName))
+        {
+            AddError(user.Line, user.Column, 
+                $"Circular type reference detected: '{user.TypeName}'");
+            return null;
+        }
+        
         var symbol = _symbolTable.Lookup(user.TypeName);
         if (symbol == null || symbol.Kind != SymbolKind.Type)
         {
