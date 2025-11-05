@@ -16,5 +16,9 @@ routine test(x: integer, z: real): real
 is
     var zalupa is 4
     z := 30.356
-    return z + x - 15
+    if z > 30 then
+        return fuckyou
+    else
+        return 0
+    end
 end

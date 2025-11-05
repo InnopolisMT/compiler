@@ -628,6 +628,11 @@ public class SemanticAnalyzer
         {
             CheckBody(routineDecl.Body);
             ComputeLocalVariableOffsets(routineDecl.Body);
+            
+            if (routineDecl.ReturnType != null)
+            {
+                CheckAllPathsReturn(routineDecl.Body, routineDecl.Name);
+            }
         }
 
         _symbolTable.PopScope();
@@ -759,24 +764,18 @@ public class SemanticAnalyzer
         {
             var boolType = new PrimitiveType(PrimitiveKind.Boolean);
 
-            if (conditionType.IsCompatibleWith(boolType) || boolType.IsCompatibleWith(conditionType))
+            if (!conditionType.IsCompatibleWith(boolType) && !boolType.IsCompatibleWith(conditionType))
             {
-                return;
+                if (!(conditionType is PrimitiveType prim && prim.Kind == PrimitiveKind.Integer))
+                {
+                    var commonType = PrimitiveType.GetCommonType(conditionType, boolType);
+                    if (commonType == null)
+                    {
+                        AddError(ifStmt.Condition.Line, ifStmt.Condition.Column,
+                            $"Condition must be boolean, got {conditionType.Name}");
+                    }
+                }
             }
-
-            if (conditionType is PrimitiveType prim && prim.Kind == PrimitiveKind.Integer)
-            {
-                return;
-            }
-
-            var commonType = PrimitiveType.GetCommonType(conditionType, boolType);
-            if (commonType != null)
-            {
-                return;
-            }
-
-            AddError(ifStmt.Condition.Line, ifStmt.Condition.Column,
-                $"Condition must be boolean, got {conditionType.Name}");
         }
 
         foreach (var stmt in ifStmt.ThenBody)
@@ -797,24 +796,18 @@ public class SemanticAnalyzer
         {
             var boolType = new PrimitiveType(PrimitiveKind.Boolean);
 
-            if (conditionType.IsCompatibleWith(boolType) || boolType.IsCompatibleWith(conditionType))
+            if (!conditionType.IsCompatibleWith(boolType) && !boolType.IsCompatibleWith(conditionType))
             {
-                return;
+                if (!(conditionType is PrimitiveType prim && prim.Kind == PrimitiveKind.Integer))
+                {
+                    var commonType = PrimitiveType.GetCommonType(conditionType, boolType);
+                    if (commonType == null)
+                    {
+                        AddError(whileLoop.Condition.Line, whileLoop.Condition.Column,
+                            $"Condition must be boolean, got {conditionType.Name}");
+                    }
+                }
             }
-
-            if (conditionType is PrimitiveType prim && prim.Kind == PrimitiveKind.Integer)
-            {
-                return;
-            }
-
-            var commonType = PrimitiveType.GetCommonType(conditionType, boolType);
-            if (commonType != null)
-            {
-                return;
-            }
-
-            AddError(whileLoop.Condition.Line, whileLoop.Condition.Column,
-                $"Condition must be boolean, got {conditionType.Name}");
         }
 
         foreach (var stmt in whileLoop.Body)
@@ -1531,6 +1524,85 @@ public class SemanticAnalyzer
             "-" => -operand.Value,
             _ => null
         };
+    }
+
+    private void CheckAllPathsReturn(BodyNode body, string routineName)
+    {
+        if (!AllPathsReturn(body.Statements))
+        {
+            int line = body.Line;
+            int column = body.Column;
+            
+            if (body.Statements.Count > 0)
+            {
+                var lastStatement = body.Statements[body.Statements.Count - 1];
+                line = lastStatement.Line;
+                column = lastStatement.Column;
+            }
+            
+            AddError(line, column,
+                $"Not all execution paths in routine '{routineName}' return a value");
+        }
+    }
+
+    private bool AllPathsReturn(List<StatementNode> statements)
+    {
+        if (statements.Count == 0)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < statements.Count; i++)
+        {
+            var statement = statements[i];
+            
+            if (statement is ReturnStatementNode)
+            {
+                return true;
+            }
+
+            if (statement is IfStatementNode ifStmt)
+            {
+                bool thenReturns = AllPathsReturn(ifStmt.ThenBody);
+                
+                if (ifStmt.ElseBody.Count > 0)
+                {
+                    bool elseReturns = AllPathsReturn(ifStmt.ElseBody);
+                    if (thenReturns && elseReturns)
+                    {
+                        return true;
+                    }
+                    if (!thenReturns || !elseReturns)
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    if (!thenReturns)
+                    {
+                        return false;
+                    }
+                    if (i == statements.Count - 1)
+                    {
+                        return false;
+                    }
+                    var remainingStatements = statements.Skip(i + 1).ToList();
+                    return AllPathsReturn(remainingStatements);
+                }
+            }
+
+            if (statement is WhileLoopNode || statement is ForLoopNode)
+            {
+                if (i == statements.Count - 1)
+                {
+                    return false;
+                }
+                continue;
+            }
+        }
+
+        return false;
     }
 
     private void AddError(int line, int column, string message)
