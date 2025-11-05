@@ -81,32 +81,21 @@ public class SemanticAnalyzer
 
     private void Pass1_CheckForwardDeclarations(ProgramNode program)
     {
+        // Check for forward declarations that have no full implementation
+        // (if a full implementation was found, it would have been removed from _forwardDeclarations in ProcessRoutineDeclaration)
         foreach (var forwardName in _forwardDeclarations.Keys)
         {
             var forwardDecl = _forwardDeclarations[forwardName];
-            var fullDecl = program.Declarations
-                .OfType<RoutineDeclarationNode>()
-                .FirstOrDefault(r => r.Name == forwardName && IsFullDeclaration(r));
-
-            if (fullDecl == null)
-            {
-                AddError(forwardDecl.Line, forwardDecl.Column,
-                    $"Forward declaration of routine '{forwardName}' has no full definition");
-                continue;
-            }
-
-            if (!SignaturesMatch(forwardDecl, fullDecl))
-            {
-                AddError(fullDecl.Line, fullDecl.Column,
-                    $"Signature of routine '{forwardName}' does not match forward declaration");
-            }
+            AddError(forwardDecl.Line, forwardDecl.Column,
+                $"Forward declaration of routine '{forwardName}' has no full definition");
         }
     }
 
     private bool IsFullDeclaration(RoutineDeclarationNode routine)
     {
-        return routine.Body != null &&
-               (routine.Body.Statements.Count > 0 || routine.Body.Declarations.Count > 0);
+        // If Body is not null, it means the routine has "is ... end" block, so it's a full declaration
+        // If Body is null, it's just a signature without implementation - forward declaration
+        return routine.Body != null;
     }
 
     private bool SignaturesMatch(RoutineDeclarationNode forward, RoutineDeclarationNode full)
@@ -210,10 +199,44 @@ public class SemanticAnalyzer
     {
         AnnotateScope(routineDecl);
 
+        bool isFullDecl = IsFullDeclaration(routineDecl);
+        bool isForwardDecl = !isFullDecl;
+
+        // Check if this routine name is already defined
         if (_symbolTable.IsDefinedLocally(routineDecl.Name))
         {
-            AddError(routineDecl.Line, routineDecl.Column, $"Routine '{routineDecl.Name}' is already defined in this scope");
-            return;
+            // Check if it's a forward declaration that we're now implementing
+            if (_forwardDeclarations.ContainsKey(routineDecl.Name) && isFullDecl)
+            {
+                // This is the full implementation of a forward declaration
+                var forwardDecl = _forwardDeclarations[routineDecl.Name];
+                
+                // Check if signatures match
+                if (!SignaturesMatch(forwardDecl, routineDecl))
+                {
+                    AddError(routineDecl.Line, routineDecl.Column, 
+                        $"Signature of routine '{routineDecl.Name}' does not match forward declaration");
+                    return;
+                }
+                
+                // Remove from forward declarations as it's now fully defined
+                _forwardDeclarations.Remove(routineDecl.Name);
+                
+                // Update the symbol's declaration node to point to the full implementation
+                var existingSymbol = _symbolTable.LookupLocal(routineDecl.Name);
+                if (existingSymbol != null)
+                {
+                    existingSymbol.DeclarationNode = routineDecl;
+                }
+                
+                return; // Don't add a new symbol, we already have one from the forward declaration
+            }
+            else
+            {
+                // Both are forward declarations, or both are full declarations - error
+                AddError(routineDecl.Line, routineDecl.Column, $"Routine '{routineDecl.Name}' is already defined in this scope");
+                return;
+            }
         }
 
         Type? returnType = null;
@@ -243,7 +266,7 @@ public class SemanticAnalyzer
             return;
         }
 
-        if (!IsFullDeclaration(routineDecl))
+        if (isForwardDecl)
         {
             _forwardDeclarations[routineDecl.Name] = routineDecl;
         }
@@ -390,6 +413,62 @@ public class SemanticAnalyzer
         return fields.Count > 0 ? new RecordType(fields) : null;
     }
 
+    private TypeNode CreateTypeNodeFromSemanticType(Type semanticType, ExpressionNode? contextExpr = null)
+    {
+        return semanticType switch
+        {
+            PrimitiveType prim => new PrimitiveTypeNode { TypeName = prim.Name },
+            ArrayType arr => CreateArrayTypeNodeFromSemanticType(arr, contextExpr),
+            RecordType rec => CreateRecordTypeNodeFromSemanticType(rec, contextExpr),
+            _ => CreateUserTypeNodeFromSemanticType(semanticType)
+        };
+    }
+
+    private TypeNode CreateArrayTypeNodeFromSemanticType(ArrayType arrType, ExpressionNode? contextExpr)
+    {
+        int size = arrType.Size;
+        ExpressionNode sizeExpr = contextExpr is ArrayInitializerNode arrInit && arrInit.Elements.Count > 0
+            ? new IntegerLiteralNode { Value = arrInit.Elements.Count }
+            : new IntegerLiteralNode { Value = size };
+
+        var elementTypeNode = CreateTypeNodeFromSemanticType(arrType.ElementType);
+        return new ArrayTypeNode
+        {
+            Size = sizeExpr,
+            ElementType = elementTypeNode
+        };
+    }
+
+    private TypeNode CreateRecordTypeNodeFromSemanticType(RecordType recType, ExpressionNode? contextExpr)
+    {
+        var fields = new List<VariableDeclarationNode>();
+        foreach (var (fieldName, fieldType) in recType.Fields)
+        {
+            var fieldTypeNode = CreateTypeNodeFromSemanticType(fieldType);
+            fields.Add(new VariableDeclarationNode
+            {
+                Name = fieldName,
+                Type = fieldTypeNode
+            });
+        }
+        return new RecordTypeNode { Fields = fields };
+    }
+
+    private TypeNode CreateUserTypeNodeFromSemanticType(Type semanticType)
+    {
+        var typeName = semanticType.Name;
+        var symbol = _symbolTable.Lookup(typeName);
+        if (symbol != null && symbol.Kind == SymbolKind.Type)
+        {
+            if (symbol.DeclarationNode is TypeDeclarationNode typeDecl)
+            {
+                return new UserTypeNode { TypeName = typeDecl.Name };
+            }
+        }
+
+        return new PrimitiveTypeNode { TypeName = typeName };
+    }
+
     private void Pass2_TypeChecking(ProgramNode program)
     {
         program.Scope = _symbolTable.GlobalScope;
@@ -454,10 +533,48 @@ public class SemanticAnalyzer
             return;
         }
 
-        var varType = ResolveTypeNode(varDecl.Type);
-        if (varType == null)
+        Type? varType;
+
+        if (varDecl.Type == null)
         {
-            return;
+            if (varDecl.InitialValue == null)
+            {
+                AddError(varDecl.Line, varDecl.Column, $"Variable '{varDecl.Name}' must have an initial value when type is not specified");
+                return;
+            }
+
+            varType = DeriveType(varDecl.InitialValue);
+            if (varType == null)
+            {
+                AddError(varDecl.InitialValue.Line, varDecl.InitialValue.Column,
+                    $"Cannot infer type for variable '{varDecl.Name}' from expression");
+                return;
+            }
+
+            varDecl.Type = CreateTypeNodeFromSemanticType(varType, varDecl.InitialValue);
+        }
+        else
+        {
+            varType = ResolveTypeNode(varDecl.Type);
+            if (varType == null)
+            {
+                return;
+            }
+
+            if (varDecl.InitialValue != null)
+            {
+                var valueType = DeriveType(varDecl.InitialValue);
+
+                if (valueType != null && !valueType.IsCompatibleWith(varType) && !varType.IsCompatibleWith(valueType))
+                {
+                    var commonType = PrimitiveType.GetCommonType(valueType, varType);
+                    if (commonType == null)
+                    {
+                        AddError(varDecl.InitialValue.Line, varDecl.InitialValue.Column,
+                            $"Type mismatch: cannot assign {valueType.Name} to {varType.Name}");
+                    }
+                }
+            }
         }
 
         var symbol = new Symbol(varDecl.Name, SymbolKind.Variable, varType)
@@ -473,21 +590,6 @@ public class SemanticAnalyzer
         {
             AddError(varDecl.Line, varDecl.Column, $"Failed to define variable '{varDecl.Name}'");
             return;
-        }
-
-        if (varDecl.InitialValue != null)
-        {
-            var valueType = DeriveType(varDecl.InitialValue);
-
-            if (valueType != null && !valueType.IsCompatibleWith(varType) && !varType.IsCompatibleWith(valueType))
-            {
-                var commonType = PrimitiveType.GetCommonType(valueType, varType);
-                if (commonType == null)
-                {
-                    AddError(varDecl.InitialValue.Line, varDecl.InitialValue.Column,
-                        $"Type mismatch: cannot assign {valueType.Name} to {varType.Name}");
-                }
-            }
         }
 
         varDecl.CodeGenInfo = symbol.CodeGenInfo;
