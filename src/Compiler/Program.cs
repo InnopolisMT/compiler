@@ -209,8 +209,15 @@ namespace Compiler
                         Console.WriteLine($"{indent}ReturnType:");
                         PrintType(routineDecl.ReturnType, indent + "  ");
                     }
-                    Console.WriteLine($"{indent}Body:");
-                    PrintBody(routineDecl.Body, indent + "  ");
+                    if (routineDecl.Body != null)
+                    {
+                        Console.WriteLine($"{indent}Body:");
+                        PrintBody(routineDecl.Body, indent + "  ");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"{indent}Body: (forward declaration)");
+                    }
                     break;
             }
         }

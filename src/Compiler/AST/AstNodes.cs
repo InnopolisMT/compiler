@@ -36,7 +36,7 @@ public class RoutineDeclarationNode : DeclarationNode
     public string Name { get; set; } = "";
     public List<ParameterNode> Parameters { get; set; } = new();
     public TypeNode? ReturnType { get; set; }
-    public BodyNode Body { get; set; } = null!;
+    public BodyNode? Body { get; set; }
 }
 public class ParameterNode : AstNode
 {

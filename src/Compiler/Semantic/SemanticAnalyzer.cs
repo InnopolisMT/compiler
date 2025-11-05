@@ -553,9 +553,11 @@ public class SemanticAnalyzer
             }
         }
         
-        CheckBody(routineDecl.Body);
-        
-        ComputeLocalVariableOffsets(routineDecl.Body);
+        if (routineDecl.Body != null)
+        {
+            CheckBody(routineDecl.Body);
+            ComputeLocalVariableOffsets(routineDecl.Body);
+        }
         
         _symbolTable.PopScope();
         _currentRoutine = null;

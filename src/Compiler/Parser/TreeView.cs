@@ -326,7 +326,10 @@ namespace Compiler.TreeView
                         routineChildren.Add(ConvertTypeToTree(routineDecl.ReturnType));
                     }
 
-                    routineChildren.Add(ConvertBodyToTree(routineDecl.Body));
+                    if (routineDecl.Body != null)
+                    {
+                        routineChildren.Add(ConvertBodyToTree(routineDecl.Body));
+                    }
                     node["children"] = routineChildren;
                     break;
             }

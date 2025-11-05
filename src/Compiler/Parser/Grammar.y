@@ -195,6 +195,38 @@ RoutineDeclaration
                 Body = (BodyNode)$6
             };
         }
+    | tkRoutine tkIdentifier tkLeftParen ParameterList tkRightParen tkColon Type
+        {
+            $$ = new RoutineDeclarationNode
+            {
+                Name = (string)$2,
+                Parameters = (List<ParameterNode>)$4,
+                ReturnType = (TypeNode)$7
+            };
+        }
+    | tkRoutine tkIdentifier tkLeftParen ParameterList tkRightParen
+        {
+            $$ = new RoutineDeclarationNode
+            {
+                Name = (string)$2,
+                Parameters = (List<ParameterNode>)$4
+            };
+        }
+    | tkRoutine tkIdentifier tkLeftParen tkRightParen tkColon Type
+        {
+            $$ = new RoutineDeclarationNode
+            {
+                Name = (string)$2,
+                ReturnType = (TypeNode)$6
+            };
+        }
+    | tkRoutine tkIdentifier tkLeftParen tkRightParen
+        {
+            $$ = new RoutineDeclarationNode
+            {
+                Name = (string)$2
+            };
+        }
     ;
 
 ParameterList
