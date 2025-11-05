@@ -644,7 +644,8 @@ public class SemanticAnalyzer
     {
         if (_currentRoutine == null)
         {
-            AddError(returnStmt.Line, returnStmt.Column, "Return statement outside of routine");
+            AddError(returnStmt.Line, returnStmt.Column, 
+                "Return statement must be inside a routine");
             return;
         }
         
@@ -653,7 +654,7 @@ public class SemanticAnalyzer
             if (_currentRoutine.ReturnType != null)
             {
                 AddError(returnStmt.Line, returnStmt.Column, 
-                    $"Routine '{_currentRoutine.Name}' expects a return value");
+                    $"Routine '{_currentRoutine.Name}' expects a return value, but none provided");
             }
         }
         else
@@ -661,7 +662,7 @@ public class SemanticAnalyzer
             if (_currentRoutine.ReturnType == null)
             {
                 AddError(returnStmt.Line, returnStmt.Column, 
-                    $"Routine '{_currentRoutine.Name}' does not return a value");
+                    $"Routine '{_currentRoutine.Name}' does not return a value, but return statement provides one");
             }
             else
             {
@@ -685,7 +686,7 @@ public class SemanticAnalyzer
                 }
                 
                 AddError(returnStmt.Value.Line, returnStmt.Value.Column, 
-                    $"Return type mismatch: expected {expectedType.Name}, got {returnType.Name}");
+                    $"Return type mismatch in routine '{_currentRoutine.Name}': expected {expectedType.Name}, got {returnType.Name}");
             }
         }
     }
