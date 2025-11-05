@@ -385,12 +385,12 @@ ForLoop
                 Body = ((BodyNode)$6).Statements
             };
         }
-    | tkFor tkIdentifier tkIn tkReverse Range tkLoop Body tkEnd
+    | tkFor tkIdentifier tkIn Range tkReverse tkLoop Body tkEnd
         {
             $$ = new ForLoopNode
             {
                 Variable = (string)$2,
-                Range = (ExpressionNode)$5,
+                Range = (ExpressionNode)$4,
                 IsReverse = true,
                 Body = ((BodyNode)$7).Statements
             };
