@@ -1,7 +1,6 @@
 routine main()
 is
-    for i in reverse 10 .. 1 loop
+    for i in person.age .. 50 loop
         print i
     end
 end
-

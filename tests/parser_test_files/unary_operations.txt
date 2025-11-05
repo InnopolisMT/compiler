@@ -1,4 +1,5 @@
 routine main()
+is
     x := -42
     if (not flag) then
         print 0

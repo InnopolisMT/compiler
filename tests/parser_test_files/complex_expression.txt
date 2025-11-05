@@ -1,0 +1,4 @@
+routine main()
+is
+    result := (a + b) * c - d / 2
+end

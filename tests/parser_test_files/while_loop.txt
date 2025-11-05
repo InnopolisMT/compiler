@@ -1,4 +1,5 @@
 routine main()
+is
     while (x < 10) loop
         print x
     end

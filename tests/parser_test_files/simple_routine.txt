@@ -1,4 +1,5 @@
 routine main()
+is
     print 42
 end
 

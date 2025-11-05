@@ -13,6 +13,7 @@ type IntArray is array[5] integer
 var globalVar : integer is 100
 
 routine main()
+is
     var arr : IntArray is [1, 2, 3, 4, 5]
     var age : integer is 30
     
