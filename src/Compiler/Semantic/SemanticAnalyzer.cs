@@ -646,16 +646,24 @@ public class SemanticAnalyzer
                 var returnType = DeriveType(returnStmt.Value);
                 var expectedType = ResolveTypeNode(_currentRoutine.ReturnType);
                 
-                if (returnType != null && expectedType != null && 
-                    !returnType.IsCompatibleWith(expectedType) && !expectedType.IsCompatibleWith(returnType))
+                if (returnType == null || expectedType == null)
                 {
-                    var commonType = PrimitiveType.GetCommonType(returnType, expectedType);
-                    if (commonType == null)
-                    {
-                        AddError(returnStmt.Value.Line, returnStmt.Value.Column, 
-                            $"Return type mismatch: expected {expectedType.Name}, got {returnType.Name}");
-                    }
+                    return;
                 }
+                
+                if (returnType.IsCompatibleWith(expectedType))
+                {
+                    return;
+                }
+                
+                var commonType = PrimitiveType.GetCommonType(returnType, expectedType);
+                if (commonType != null && commonType.IsCompatibleWith(expectedType))
+                {
+                    return;
+                }
+                
+                AddError(returnStmt.Value.Line, returnStmt.Value.Column, 
+                    $"Return type mismatch: expected {expectedType.Name}, got {returnType.Name}");
             }
         }
     }
