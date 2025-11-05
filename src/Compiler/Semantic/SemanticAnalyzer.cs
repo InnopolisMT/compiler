@@ -514,6 +514,13 @@ public class SemanticAnalyzer
     
     private void CheckAssignment(AssignmentNode assign)
     {
+        if (!IsModifiable(assign.Target))
+        {
+            AddError(assign.Target.Line, assign.Target.Column, 
+                "Assignment target must be a modifiable expression (variable, array element, or record field)");
+            return;
+        }
+        
         var targetType = DeriveType(assign.Target);
         var valueType = DeriveType(assign.Value);
         
@@ -1116,6 +1123,79 @@ public class SemanticAnalyzer
         }
         
         return new ArrayType(elementType, arrInit.Elements.Count);
+    }
+    
+    private bool IsModifiable(ExpressionNode expression)
+    {
+        return expression switch
+        {
+            IdentifierNode id => IsModifiableIdentifier(id),
+            ArrayAccessNode arrAccess => IsModifiableArrayAccess(arrAccess),
+            RecordAccessNode recAccess => IsModifiableRecordAccess(recAccess),
+            RoutineCallNode => false,
+            _ => false
+        };
+    }
+    
+    private bool IsModifiableIdentifier(IdentifierNode id)
+    {
+        var symbol = _symbolTable.Lookup(id.Name);
+        if (symbol == null)
+        {
+            return false;
+        }
+        
+        return symbol.Kind == SymbolKind.Variable || symbol.Kind == SymbolKind.Parameter;
+    }
+    
+    private bool IsModifiableArrayAccess(ArrayAccessNode arrAccess)
+    {
+        if (arrAccess.Array is IdentifierNode id)
+        {
+            var symbol = _symbolTable.Lookup(id.Name);
+            if (symbol == null)
+            {
+                return false;
+            }
+            return symbol.Kind == SymbolKind.Variable || symbol.Kind == SymbolKind.Parameter;
+        }
+        
+        if (arrAccess.Array is ArrayAccessNode nestedArr)
+        {
+            return IsModifiableArrayAccess(nestedArr);
+        }
+        
+        if (arrAccess.Array is RecordAccessNode recAccess)
+        {
+            return IsModifiableRecordAccess(recAccess);
+        }
+        
+        return false;
+    }
+    
+    private bool IsModifiableRecordAccess(RecordAccessNode recAccess)
+    {
+        if (recAccess.Record is IdentifierNode id)
+        {
+            var symbol = _symbolTable.Lookup(id.Name);
+            if (symbol == null)
+            {
+                return false;
+            }
+            return symbol.Kind == SymbolKind.Variable || symbol.Kind == SymbolKind.Parameter;
+        }
+        
+        if (recAccess.Record is ArrayAccessNode arrAccess)
+        {
+            return IsModifiableArrayAccess(arrAccess);
+        }
+        
+        if (recAccess.Record is RecordAccessNode nestedRec)
+        {
+            return IsModifiableRecordAccess(nestedRec);
+        }
+        
+        return false;
     }
     
     private void AddError(int line, int column, string message)
