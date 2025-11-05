@@ -543,14 +543,25 @@ public class SemanticAnalyzer
         if (conditionType != null)
         {
             var boolType = new PrimitiveType(PrimitiveKind.Boolean);
-            if (!conditionType.IsCompatibleWith(boolType) && !boolType.IsCompatibleWith(conditionType))
+            
+            if (conditionType.IsCompatibleWith(boolType) || boolType.IsCompatibleWith(conditionType))
             {
-                if (!(conditionType is PrimitiveType prim && prim.Kind == PrimitiveKind.Integer))
-                {
-                    AddError(ifStmt.Condition.Line, ifStmt.Condition.Column, 
-                        $"Condition must be boolean or integer, got {conditionType.Name}");
-                }
+                return;
             }
+            
+            if (conditionType is PrimitiveType prim && prim.Kind == PrimitiveKind.Integer)
+            {
+                return;
+            }
+            
+            var commonType = PrimitiveType.GetCommonType(conditionType, boolType);
+            if (commonType != null)
+            {
+                return;
+            }
+            
+            AddError(ifStmt.Condition.Line, ifStmt.Condition.Column, 
+                $"Condition must be boolean, got {conditionType.Name}");
         }
         
         foreach (var stmt in ifStmt.ThenBody)
@@ -570,14 +581,25 @@ public class SemanticAnalyzer
         if (conditionType != null)
         {
             var boolType = new PrimitiveType(PrimitiveKind.Boolean);
-            if (!conditionType.IsCompatibleWith(boolType) && !boolType.IsCompatibleWith(conditionType))
+            
+            if (conditionType.IsCompatibleWith(boolType) || boolType.IsCompatibleWith(conditionType))
             {
-                if (!(conditionType is PrimitiveType prim && prim.Kind == PrimitiveKind.Integer))
-                {
-                    AddError(whileLoop.Condition.Line, whileLoop.Condition.Column, 
-                        $"Condition must be boolean or integer, got {conditionType.Name}");
-                }
+                return;
             }
+            
+            if (conditionType is PrimitiveType prim && prim.Kind == PrimitiveKind.Integer)
+            {
+                return;
+            }
+            
+            var commonType = PrimitiveType.GetCommonType(conditionType, boolType);
+            if (commonType != null)
+            {
+                return;
+            }
+            
+            AddError(whileLoop.Condition.Line, whileLoop.Condition.Column, 
+                $"Condition must be boolean, got {conditionType.Name}");
         }
         
         foreach (var stmt in whileLoop.Body)
