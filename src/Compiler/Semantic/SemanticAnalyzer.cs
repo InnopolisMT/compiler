@@ -390,12 +390,34 @@ public class SemanticAnalyzer
     
     private void CheckVariableDeclaration(VariableDeclarationNode varDecl)
     {
+        if (_symbolTable.IsDefinedLocally(varDecl.Name))
+        {
+            AddError(varDecl.Line, varDecl.Column, $"Variable '{varDecl.Name}' is already defined in this scope");
+            return;
+        }
+        
+        var varType = ResolveTypeNode(varDecl.Type);
+        if (varType == null)
+        {
+            return;
+        }
+        
+        var symbol = new Symbol(varDecl.Name, SymbolKind.Variable, varType)
+        {
+            DeclarationNode = varDecl
+        };
+        
+        if (!_symbolTable.Enter(varDecl.Name, symbol))
+        {
+            AddError(varDecl.Line, varDecl.Column, $"Failed to define variable '{varDecl.Name}'");
+            return;
+        }
+        
         if (varDecl.InitialValue != null)
         {
             var valueType = CheckExpression(varDecl.InitialValue);
-            var varType = ResolveTypeNode(varDecl.Type);
             
-            if (valueType != null && varType != null && !valueType.IsCompatibleWith(varType))
+            if (valueType != null && !valueType.IsCompatibleWith(varType))
             {
                 AddError(varDecl.InitialValue.Line, varDecl.InitialValue.Column, 
                     $"Type mismatch: cannot assign {valueType.Name} to {varType.Name}");
@@ -629,7 +651,7 @@ public class SemanticAnalyzer
         var symbol = _symbolTable.Lookup(id.Name);
         if (symbol == null)
         {
-            AddError(id.Line, id.Column, $"Undefined identifier '{id.Name}'");
+            AddError(id.Line, id.Column, $"Undeclared variable '{id.Name}'");
             return null;
         }
         
