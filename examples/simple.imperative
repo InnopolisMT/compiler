@@ -1,6 +1,9 @@
 var x : integer is 42
 var y : real is 3.14
 var flag : boolean is true
+
+routine test(): integer
+
 routine main() 
 is
     print x
@@ -11,7 +14,7 @@ end
 routine test(): integer
 is
     var z : integer is 30
-    var result : integer
+    var result : real
     result := z * 24 + 39 - 98
     return result
 end

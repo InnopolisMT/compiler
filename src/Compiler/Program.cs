@@ -136,7 +136,16 @@ namespace Compiler
             ProgramNode ast = parser.Parse();
 
             var semanticAnalyzer = new SemanticAnalyzer();
+            Console.WriteLine("Semantic analysis...");
             semanticAnalyzer.Analyze(ast);
+            if (semanticAnalyzer.HasErrors)
+            {
+                foreach (var error in semanticAnalyzer.Errors)
+                {
+                    Console.WriteLine(error.Format(options.FilePath));
+                }
+                Environment.Exit(1);
+            }
 
             if (options.DebugMode)
             {
