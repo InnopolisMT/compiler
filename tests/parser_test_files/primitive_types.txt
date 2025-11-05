@@ -1,0 +1,3 @@
+var i : integer is 0
+var r : real is 0.0
+var b : boolean is true

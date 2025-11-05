@@ -1,5 +1,4 @@
 routine main()
 is
-    x := 10 + 20 * 3
+    print arr[5]
 end
-

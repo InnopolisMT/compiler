@@ -35,10 +35,16 @@ namespace Compiler.Tests
             return decls[index];
         }
 
+        private BodyNode GetBody(RoutineDeclarationNode routine)
+        {
+            return Assert.IsType<BodyNode>(routine.Body);
+        }
+
         private T GetSingleStatement<T>(RoutineDeclarationNode routine) where T : StatementNode
         {
-            Assert.Single(routine.Body.Statements);
-            return Assert.IsType<T>(routine.Body.Statements[0]);
+            var body = GetBody(routine);
+            Assert.Single(body.Statements);
+            return Assert.IsType<T>(body.Statements[0]);
         }
 
         [Fact]
@@ -112,7 +118,8 @@ namespace Compiler.Tests
             Assert.Equal("main", routine.Name);
             Assert.Empty(routine.Parameters);
             Assert.Null(routine.ReturnType);
-            Assert.Single(routine.Body.Statements);
+            var body = GetBody(routine);
+            Assert.Single(body.Statements);
         }
 
         [Fact]
@@ -136,8 +143,9 @@ namespace Compiler.Tests
             var returnType = Assert.IsType<PrimitiveTypeNode>(routine.ReturnType);
             Assert.Equal("integer", returnType.TypeName);
 
-            Assert.Single(routine.Body.Statements);
-            Assert.IsType<ReturnStatementNode>(routine.Body.Statements[0]);
+            var body = GetBody(routine);
+            Assert.Single(body.Statements);
+            Assert.IsType<ReturnStatementNode>(body.Statements[0]);
         }
 
         // ============================================================================
@@ -286,7 +294,8 @@ namespace Compiler.Tests
         {
             var ast = ParseFile("binary_expression.txt");
             var routine = GetSingleDeclaration<RoutineDeclarationNode>(ast);
-            var assignment = Assert.IsType<AssignmentNode>(routine.Body.Statements[0]);
+            var body = GetBody(routine);
+            var assignment = Assert.IsType<AssignmentNode>(body.Statements[0]);
 
             var plus = Assert.IsType<BinaryOperationNode>(assignment.Value);
             Assert.Equal("+", plus.Operator);
@@ -306,19 +315,20 @@ namespace Compiler.Tests
             var ast = ParseFile("operator_precedence.txt");
             var routine = GetSingleDeclaration<RoutineDeclarationNode>(ast);
 
-            Assert.Equal(3, routine.Body.Statements.Count);
+            var body = GetBody(routine);
+            Assert.Equal(3, body.Statements.Count);
 
-            var assign1 = Assert.IsType<AssignmentNode>(routine.Body.Statements[0]);
+            var assign1 = Assert.IsType<AssignmentNode>(body.Statements[0]);
             var expr1 = Assert.IsType<BinaryOperationNode>(assign1.Value);
             Assert.Equal("+", expr1.Operator);
             Assert.IsType<BinaryOperationNode>(expr1.Right);
 
-            var assign2 = Assert.IsType<AssignmentNode>(routine.Body.Statements[1]);
+            var assign2 = Assert.IsType<AssignmentNode>(body.Statements[1]);
             var expr2 = Assert.IsType<BinaryOperationNode>(assign2.Value);
             Assert.Equal("-", expr2.Operator);
             Assert.IsType<BinaryOperationNode>(expr2.Right);
 
-            var assign3 = Assert.IsType<AssignmentNode>(routine.Body.Statements[2]);
+            var assign3 = Assert.IsType<AssignmentNode>(body.Statements[2]);
             var expr3 = Assert.IsType<BinaryOperationNode>(assign3.Value);
             Assert.Equal("*", expr3.Operator);
             var leftParen = Assert.IsType<BinaryOperationNode>(expr3.Left);
@@ -348,14 +358,15 @@ namespace Compiler.Tests
             var ast = ParseFile("unary_operations.txt");
             var routine = GetSingleDeclaration<RoutineDeclarationNode>(ast);
 
-            Assert.Equal(2, routine.Body.Statements.Count);
+            var body = GetBody(routine);
+            Assert.Equal(2, body.Statements.Count);
 
-            var assignment = Assert.IsType<AssignmentNode>(routine.Body.Statements[0]);
+            var assignment = Assert.IsType<AssignmentNode>(body.Statements[0]);
             var unaryMinus = Assert.IsType<UnaryOperationNode>(assignment.Value);
             Assert.Equal("-", unaryMinus.Operator);
             Assert.Equal(42L, ((IntegerLiteralNode)unaryMinus.Operand).Value);
 
-            var ifStmt = Assert.IsType<IfStatementNode>(routine.Body.Statements[1]);
+            var ifStmt = Assert.IsType<IfStatementNode>(body.Statements[1]);
             var notOp = Assert.IsType<UnaryOperationNode>(ifStmt.Condition);
             Assert.Equal("not", notOp.Operator);
             Assert.IsType<IdentifierNode>(notOp.Operand);
@@ -385,9 +396,10 @@ namespace Compiler.Tests
             var ast = ParseFile("nested_record_access.txt");
             var routine = GetSingleDeclaration<RoutineDeclarationNode>(ast);
 
-            Assert.Equal(2, routine.Body.Statements.Count);
+            var body = GetBody(routine);
+            Assert.Equal(2, body.Statements.Count);
 
-            var assignment = Assert.IsType<AssignmentNode>(routine.Body.Statements[0]);
+            var assignment = Assert.IsType<AssignmentNode>(body.Statements[0]);
 
             var outerAccess = Assert.IsType<RecordAccessNode>(assignment.Target);
             Assert.Equal("street", outerAccess.FieldName);
@@ -398,7 +410,7 @@ namespace Compiler.Tests
             var innerIdent = Assert.IsType<IdentifierNode>(middleAccess.Record);
             Assert.Equal("person", innerIdent.Name);
 
-            var printStmt = Assert.IsType<PrintStatementNode>(routine.Body.Statements[1]);
+            var printStmt = Assert.IsType<PrintStatementNode>(body.Statements[1]);
 
             var printAccess = Assert.IsType<RecordAccessNode>(printStmt.Expression);
             Assert.Equal("street", printAccess.FieldName);
@@ -451,9 +463,10 @@ namespace Compiler.Tests
             var ast = ParseFile("nested_record_usage.txt");
             var routine = GetSingleDeclaration<RoutineDeclarationNode>(ast);
 
-            Assert.Equal(3, routine.Body.Statements.Count);
+            var body = GetBody(routine);
+            Assert.Equal(3, body.Statements.Count);
 
-            var assignment = Assert.IsType<AssignmentNode>(routine.Body.Statements[0]);
+            var assignment = Assert.IsType<AssignmentNode>(body.Statements[0]);
 
             var level4 = Assert.IsType<RecordAccessNode>(assignment.Target);
             Assert.Equal("street", level4.FieldName);
@@ -467,13 +480,13 @@ namespace Compiler.Tests
             var level1 = Assert.IsType<IdentifierNode>(level2.Record);
             Assert.Equal("company", level1.Name);
 
-            var ifStmt = Assert.IsType<IfStatementNode>(routine.Body.Statements[1]);
+            var ifStmt = Assert.IsType<IfStatementNode>(body.Statements[1]);
             var condition = Assert.IsType<BinaryOperationNode>(ifStmt.Condition);
 
             var conditionAccess = Assert.IsType<RecordAccessNode>(condition.Left);
             Assert.Equal("number", conditionAccess.FieldName);
 
-            var assignWithExpr = Assert.IsType<AssignmentNode>(routine.Body.Statements[2]);
+            var assignWithExpr = Assert.IsType<AssignmentNode>(body.Statements[2]);
             var binaryOp = Assert.IsType<BinaryOperationNode>(assignWithExpr.Value);
             Assert.Equal("+", binaryOp.Operator);
 
@@ -492,11 +505,13 @@ namespace Compiler.Tests
 
             var fooRoutine = routines[0];
             Assert.Equal("foo", fooRoutine.Name);
-            Assert.Single(fooRoutine.Body.Statements);
+            var fooBody = GetBody(fooRoutine);
+            Assert.Single(fooBody.Statements);
 
             var mainRoutine = routines[1];
             Assert.Equal("main", mainRoutine.Name);
-            Assert.Single(mainRoutine.Body.Statements);
+            var mainBody = GetBody(mainRoutine);
+            Assert.Single(mainBody.Statements);
         }
 
         // ============================================================================
@@ -547,14 +562,15 @@ namespace Compiler.Tests
 
             var mainRoutine = routines[0];
             Assert.Equal("main", mainRoutine.Name);
+            var mainBody = GetBody(mainRoutine);
 
-            Assert.Equal(2, mainRoutine.Body.Declarations.Count);
+            Assert.Equal(2, mainBody.Declarations.Count);
 
-            Assert.Equal(3, mainRoutine.Body.Statements.Count);
+            Assert.Equal(3, mainBody.Statements.Count);
 
-            Assert.IsType<AssignmentNode>(mainRoutine.Body.Statements[0]);
-            Assert.IsType<ForLoopNode>(mainRoutine.Body.Statements[1]);
-            Assert.IsType<IfStatementNode>(mainRoutine.Body.Statements[2]);
+            Assert.IsType<AssignmentNode>(mainBody.Statements[0]);
+            Assert.IsType<ForLoopNode>(mainBody.Statements[1]);
+            Assert.IsType<IfStatementNode>(mainBody.Statements[2]);
         }
 
         // ============================================================================
@@ -586,12 +602,7 @@ namespace Compiler.Tests
         [Fact]
         public void TestRecordAccessInExpression()
         {
-            var ast = ParseCode(@"
-                routine main()
-                    for i in person.age .. 50 loop
-                        print i
-                    end
-                end");
+            var ast = ParseFile("record_access_in_expression.txt");
 
             var routine = GetSingleDeclaration<RoutineDeclarationNode>(ast);
             var forLoop = GetSingleStatement<ForLoopNode>(routine);
@@ -609,10 +620,7 @@ namespace Compiler.Tests
         [Fact]
         public void TestArrayAccessInExpression()
         {
-            var ast = ParseCode(@"
-                routine main()
-                    print arr[5]
-                end");
+            var ast = ParseFile("array_access_in_expression.txt");
 
             var routine = GetSingleDeclaration<RoutineDeclarationNode>(ast);
             var printStmt = GetSingleStatement<PrintStatementNode>(routine);
@@ -625,10 +633,7 @@ namespace Compiler.Tests
         [Fact]
         public void TestReturnStatement()
         {
-            var ast = ParseCode(@"
-                routine test() : integer
-                    return 42
-                end");
+            var ast = ParseFile("return_statement.txt");
 
             var routine = GetSingleDeclaration<RoutineDeclarationNode>(ast);
             var returnStmt = GetSingleStatement<ReturnStatementNode>(routine);
@@ -641,10 +646,7 @@ namespace Compiler.Tests
         [Fact]
         public void TestReturnVoid()
         {
-            var ast = ParseCode(@"
-                routine test()
-                    return
-                end");
+            var ast = ParseFile("return_void.txt");
 
             var routine = GetSingleDeclaration<RoutineDeclarationNode>(ast);
             var returnStmt = GetSingleStatement<ReturnStatementNode>(routine);
@@ -655,10 +657,7 @@ namespace Compiler.Tests
         [Fact]
         public void TestPrintStatement()
         {
-            var ast = ParseCode(@"
-                routine main()
-                    print 42
-                end");
+            var ast = ParseFile("print_statement.txt");
 
             var routine = GetSingleDeclaration<RoutineDeclarationNode>(ast);
             var printStmt = GetSingleStatement<PrintStatementNode>(routine);
@@ -674,10 +673,7 @@ namespace Compiler.Tests
         [Fact]
         public void TestPrimitiveTypes()
         {
-            var ast = ParseCode(@"
-                var i : integer is 0
-                var r : real is 0.0
-                var b : boolean is true");
+            var ast = ParseFile("primitive_types.txt");
 
             Assert.Equal(3, ast.Declarations.Count);
 
@@ -697,9 +693,7 @@ namespace Compiler.Tests
         [Fact]
         public void TestUserDefinedType()
         {
-            var ast = ParseCode(@"
-                type MyType is integer
-                var x : MyType is 0");
+            var ast = ParseFile("user_defined_type.txt");
 
             Assert.Equal(2, ast.Declarations.Count);
 
@@ -715,28 +709,25 @@ namespace Compiler.Tests
         [Fact]
         public void TestEmptyProgram()
         {
-            var ast = ParseCode("");
+            var ast = ParseFile("empty_program.txt");
             Assert.Empty(ast.Declarations);
         }
 
         [Fact]
         public void TestEmptyRoutineBody()
         {
-            var ast = ParseCode(@"
-                routine empty()
-                end");
+            var ast = ParseFile("empty_routine_body.txt");
 
             var routine = GetSingleDeclaration<RoutineDeclarationNode>(ast);
-            Assert.Empty(routine.Body.Declarations);
-            Assert.Empty(routine.Body.Statements);
+            var body = GetBody(routine);
+            Assert.Empty(body.Declarations);
+            Assert.Empty(body.Statements);
         }
 
         [Fact]
         public void TestEmptyRecordType()
         {
-            var ast = ParseCode(@"
-                type Empty is record
-                end");
+            var ast = ParseFile("empty_record_type.txt");
 
             var typeDecl = GetSingleDeclaration<TypeDeclarationNode>(ast);
             var recordType = Assert.IsType<RecordTypeNode>(typeDecl.Type);
@@ -746,8 +737,7 @@ namespace Compiler.Tests
         [Fact]
         public void TestEmptyArrayInitializer()
         {
-            var ast = ParseCode(@"
-                var arr : IntArray is []");
+            var ast = ParseFile("empty_array_initializer.txt");
 
             var varDecl = GetSingleDeclaration<VariableDeclarationNode>(ast);
             var arrayInit = Assert.IsType<ArrayInitializerNode>(varDecl.InitialValue);
@@ -773,21 +763,14 @@ namespace Compiler.Tests
 
             var mainRoutine = routines.First(r => r.Name == "main");
             Assert.NotNull(mainRoutine);
-
-            Assert.True(mainRoutine.Body.Statements.Count > 0, "Main routine should have statements");
+            var mainBody = GetBody(mainRoutine);
+            Assert.True(mainBody.Statements.Count > 0, "Main routine should have statements");
         }
 
         [Fact]
         public void TestNestedControlStructures()
         {
-            var ast = ParseCode(@"
-                routine main()
-                    for i in 1 .. 10 loop
-                        if (i = 5) then
-                            print i
-                        end
-                    end
-                end");
+            var ast = ParseFile("nested_control_structures.txt");
 
             var routine = GetSingleDeclaration<RoutineDeclarationNode>(ast);
             var forLoop = GetSingleStatement<ForLoopNode>(routine);
@@ -802,10 +785,7 @@ namespace Compiler.Tests
         [Fact]
         public void TestComplexExpression()
         {
-            var ast = ParseCode(@"
-                routine main()
-                    result := (a + b) * c - d / 2
-                end");
+            var ast = ParseFile("complex_expression.txt");
 
             var routine = GetSingleDeclaration<RoutineDeclarationNode>(ast);
             var assignment = GetSingleStatement<AssignmentNode>(routine);

@@ -8,6 +8,7 @@ type Point is record
 end
 
 routine main()
+is
     print x
 end
 
