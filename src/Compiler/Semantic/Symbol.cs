@@ -14,7 +14,7 @@ public class Symbol
     
     public SymbolKind Kind { get; set; }
     
-    public object? Type { get; set; }
+    public Type? Type { get; set; }
     
     public Dictionary<string, object?> Attributes { get; set; }
     
@@ -27,7 +27,7 @@ public class Symbol
         Attributes = new Dictionary<string, object?>();
     }
     
-    public Symbol(string name, SymbolKind kind, object? type) : this(name, kind)
+    public Symbol(string name, SymbolKind kind, Type? type) : this(name, kind)
     {
         Type = type;
     }

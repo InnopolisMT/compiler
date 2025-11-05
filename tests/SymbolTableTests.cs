@@ -23,7 +23,7 @@ public class SymbolTableTests
     {
         // Arrange
         var symbolTable = new SymbolTable();
-        var symbol = new Symbol("x", SymbolKind.Variable, "integer");
+        var symbol = new Symbol("x", SymbolKind.Variable, new PrimitiveType(PrimitiveKind.Integer));
 
         // Act
         var result = symbolTable.Enter("x", symbol);
@@ -39,8 +39,8 @@ public class SymbolTableTests
     {
         // Arrange
         var symbolTable = new SymbolTable();
-        var symbol1 = new Symbol("x", SymbolKind.Variable, "integer");
-        var symbol2 = new Symbol("x", SymbolKind.Variable, "real");
+        var symbol1 = new Symbol("x", SymbolKind.Variable, new PrimitiveType(PrimitiveKind.Integer));
+        var symbol2 = new Symbol("x", SymbolKind.Variable, new PrimitiveType(PrimitiveKind.Real));
 
         // Act
         var result1 = symbolTable.Enter("x", symbol1);
@@ -49,7 +49,7 @@ public class SymbolTableTests
         // Assert
         Assert.True(result1);
         Assert.False(result2);
-        Assert.Equal("integer", symbolTable.Lookup("x")?.Type);
+        Assert.Equal("integer", symbolTable.Lookup("x")?.Type?.ToString());
     }
 
     [Fact]
@@ -57,7 +57,7 @@ public class SymbolTableTests
     {
         // Arrange
         var symbolTable = new SymbolTable();
-        symbolTable.Enter("x", new Symbol("x", SymbolKind.Variable, "integer"));
+        symbolTable.Enter("x", new Symbol("x", SymbolKind.Variable, new PrimitiveType(PrimitiveKind.Integer)));
 
         // Act
         var symbol = symbolTable.Lookup("x");
@@ -73,7 +73,7 @@ public class SymbolTableTests
     {
         // Arrange
         var symbolTable = new SymbolTable();
-        symbolTable.Enter("x", new Symbol("x", SymbolKind.Variable, "integer"));
+        symbolTable.Enter("x", new Symbol("x", SymbolKind.Variable, new PrimitiveType(PrimitiveKind.Integer)));
         symbolTable.PushScope("inner");
 
         // Act
@@ -145,10 +145,10 @@ public class SymbolTableTests
     {
         // Arrange
         var symbolTable = new SymbolTable();
-        symbolTable.Enter("x", new Symbol("x", SymbolKind.Variable, "integer"));
+        symbolTable.Enter("x", new Symbol("x", SymbolKind.Variable, new PrimitiveType(PrimitiveKind.Integer)));
         
         symbolTable.PushScope("inner");
-        symbolTable.Enter("x", new Symbol("x", SymbolKind.Variable, "real"));
+        symbolTable.Enter("x", new Symbol("x", SymbolKind.Variable, new PrimitiveType(PrimitiveKind.Real)));
 
         // Act
         var innerX = symbolTable.Lookup("x");
@@ -156,8 +156,8 @@ public class SymbolTableTests
         var outerX = symbolTable.Lookup("x");
 
         // Assert
-        Assert.Equal("real", innerX?.Type);
-        Assert.Equal("integer", outerX?.Type);
+        Assert.Equal("real", innerX?.Type?.ToString());
+        Assert.Equal("integer", outerX?.Type?.ToString());
     }
 
     [Fact]
@@ -165,7 +165,7 @@ public class SymbolTableTests
     {
         // Arrange
         var symbolTable = new SymbolTable();
-        symbolTable.Enter("x", new Symbol("x", SymbolKind.Variable, "integer"));
+        symbolTable.Enter("x", new Symbol("x", SymbolKind.Variable, new PrimitiveType(PrimitiveKind.Integer)));
 
         // Act & Assert
         Assert.True(symbolTable.IsDefinedLocally("x"));
@@ -176,7 +176,7 @@ public class SymbolTableTests
     {
         // Arrange
         var symbolTable = new SymbolTable();
-        symbolTable.Enter("x", new Symbol("x", SymbolKind.Variable, "integer"));
+        symbolTable.Enter("x", new Symbol("x", SymbolKind.Variable, new PrimitiveType(PrimitiveKind.Integer)));
         symbolTable.PushScope("inner");
 
         // Act & Assert
@@ -189,9 +189,9 @@ public class SymbolTableTests
     {
         // Arrange
         var symbolTable = new SymbolTable();
-        symbolTable.Enter("x", new Symbol("x", SymbolKind.Variable, "integer"));
+        symbolTable.Enter("x", new Symbol("x", SymbolKind.Variable, new PrimitiveType(PrimitiveKind.Integer)));
         symbolTable.PushScope("inner");
-        symbolTable.Enter("y", new Symbol("y", SymbolKind.Variable, "real"));
+        symbolTable.Enter("y", new Symbol("y", SymbolKind.Variable, new PrimitiveType(PrimitiveKind.Real)));
 
         // Act
         var y = symbolTable.LookupLocal("y");
@@ -207,13 +207,13 @@ public class SymbolTableTests
     {
         // Arrange
         var symbolTable = new SymbolTable();
-        symbolTable.Enter("global", new Symbol("global", SymbolKind.Variable, "integer"));
+        symbolTable.Enter("global", new Symbol("global", SymbolKind.Variable, new PrimitiveType(PrimitiveKind.Integer)));
 
         symbolTable.PushScope("level1");
-        symbolTable.Enter("level1var", new Symbol("level1var", SymbolKind.Variable, "real"));
+        symbolTable.Enter("level1var", new Symbol("level1var", SymbolKind.Variable, new PrimitiveType(PrimitiveKind.Real)));
 
         symbolTable.PushScope("level2");
-        symbolTable.Enter("level2var", new Symbol("level2var", SymbolKind.Variable, "boolean"));
+        symbolTable.Enter("level2var", new Symbol("level2var", SymbolKind.Variable, new PrimitiveType(PrimitiveKind.Boolean)));
 
         // Act & Assert
         Assert.Equal(2, symbolTable.CurrentLevel);
@@ -237,9 +237,9 @@ public class SymbolTableTests
     {
         // Arrange
         var symbolTable = new SymbolTable();
-        symbolTable.Enter("x", new Symbol("x", SymbolKind.Variable, "integer"));
+        symbolTable.Enter("x", new Symbol("x", SymbolKind.Variable, new PrimitiveType(PrimitiveKind.Integer)));
         symbolTable.PushScope("test");
-        symbolTable.Enter("y", new Symbol("y", SymbolKind.Variable, "real"));
+        symbolTable.Enter("y", new Symbol("y", SymbolKind.Variable, new PrimitiveType(PrimitiveKind.Real)));
 
         // Act
         symbolTable.Reset();
@@ -255,7 +255,7 @@ public class SymbolTableTests
     public void Symbol_StoresAttributes()
     {
         // Arrange
-        var symbol = new Symbol("func", SymbolKind.Routine, "integer");
+        var symbol = new Symbol("func", SymbolKind.Routine, new PrimitiveType(PrimitiveKind.Integer));
         symbol.Attributes["paramCount"] = 3;
         symbol.Attributes["isRecursive"] = true;
 
@@ -283,7 +283,7 @@ public class SymbolTableTests
     {
         // Arrange
         var globalScope = new Scope(null, "Global");
-        globalScope.Define("x", new Symbol("x", SymbolKind.Variable, "integer"));
+        globalScope.Define("x", new Symbol("x", SymbolKind.Variable, new PrimitiveType(PrimitiveKind.Integer)));
         
         var innerScope = new Scope(globalScope, "Inner");
 

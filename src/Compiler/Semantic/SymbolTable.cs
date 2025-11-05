@@ -24,9 +24,9 @@ public class SymbolTable
 
     private void InitializeBuiltInTypes()
     {
-        Enter("integer", new Symbol("integer", SymbolKind.Type, "integer"));
-        Enter("real", new Symbol("real", SymbolKind.Type, "real"));
-        Enter("boolean", new Symbol("boolean", SymbolKind.Type, "boolean"));
+        Enter("integer", new Symbol("integer", SymbolKind.Type, new PrimitiveType(PrimitiveKind.Integer)));
+        Enter("real", new Symbol("real", SymbolKind.Type, new PrimitiveType(PrimitiveKind.Real)));
+        Enter("boolean", new Symbol("boolean", SymbolKind.Type, new PrimitiveType(PrimitiveKind.Boolean)));
     }
 
     public bool Enter(string name, Symbol symbol)
