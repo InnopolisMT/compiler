@@ -336,6 +336,14 @@ public class SemanticAnalyzer
         var elementType = ResolveTypeNode(arr.ElementType);
         if (elementType == null)
         {
+            var typeName = arr.ElementType switch
+            {
+                PrimitiveTypeNode p => p.TypeName,
+                UserTypeNode u => u.TypeName,
+                _ => "unknown"
+            };
+            AddError(arr.ElementType.Line, arr.ElementType.Column, 
+                $"Unknown element type '{typeName}' in array declaration");
             return null;
         }
         
@@ -357,6 +365,14 @@ public class SemanticAnalyzer
             var fieldType = ResolveTypeNode(field.Type);
             if (fieldType == null)
             {
+                var typeName = field.Type switch
+                {
+                    PrimitiveTypeNode p => p.TypeName,
+                    UserTypeNode u => u.TypeName,
+                    _ => "unknown"
+                };
+                AddError(field.Type.Line, field.Type.Column, 
+                    $"Unknown field type '{typeName}' in record declaration");
                 continue;
             }
             
