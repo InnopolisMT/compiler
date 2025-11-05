@@ -67,9 +67,50 @@ public sealed class PrimitiveType : Type
             {
                 return true;
             }
+
+            // Allow int ↔ boolean conversions
+            if ((Kind == PrimitiveKind.Integer && p.Kind == PrimitiveKind.Boolean) ||
+                (Kind == PrimitiveKind.Boolean && p.Kind == PrimitiveKind.Integer))
+            {
+                return true;
+            }
         }
 
         return false;
+    }
+
+    public static Type? GetCommonType(Type left, Type right)
+    {
+        if (left.Equals(right))
+        {
+            return left;
+        }
+
+        if (left is PrimitiveType leftPrim && right is PrimitiveType rightPrim)
+        {
+            if (leftPrim.Kind == rightPrim.Kind)
+            {
+                return left;
+            }
+
+            if (leftPrim.Kind == PrimitiveKind.Integer && rightPrim.Kind == PrimitiveKind.Real)
+            {
+                return right;
+            }
+
+            if (leftPrim.Kind == PrimitiveKind.Real && rightPrim.Kind == PrimitiveKind.Integer)
+            {
+                return left;
+            }
+
+            if ((leftPrim.Kind == PrimitiveKind.Integer && rightPrim.Kind == PrimitiveKind.Boolean) ||
+                (leftPrim.Kind == PrimitiveKind.Boolean && rightPrim.Kind == PrimitiveKind.Integer))
+            {
+                return new PrimitiveType(PrimitiveKind.Integer);
+            }
+        }
+
+        return null;
     }
 
     protected override bool EqualsType(Type other)
