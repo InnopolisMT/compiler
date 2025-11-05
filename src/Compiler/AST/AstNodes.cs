@@ -1,3 +1,5 @@
+using SemanticType = Compiler.Semantic.Type;
+
 namespace Compiler.AST;
 
 public abstract class AstNode
@@ -107,6 +109,7 @@ public class PrintStatementNode : StatementNode
 
 public abstract class ExpressionNode : AstNode
 {
+    public SemanticType? Type { get; set; }
 }
 
 public class BinaryOperationNode : ExpressionNode
@@ -140,6 +143,7 @@ public class BooleanLiteralNode : ExpressionNode
 public class IdentifierNode : ExpressionNode
 {
     public string Name { get; set; } = "";
+    public Compiler.Semantic.Symbol? Symbol { get; set; }
 }
 public class ArrayAccessNode : ExpressionNode
 {

@@ -725,11 +725,11 @@ public class SemanticAnalyzer
 
     private Type? CheckExpression(ExpressionNode expression)
     {
-        return expression switch
+        Type? type = expression switch
         {
-            IntegerLiteralNode => new PrimitiveType(PrimitiveKind.Integer),
-            RealLiteralNode => new PrimitiveType(PrimitiveKind.Real),
-            BooleanLiteralNode => new PrimitiveType(PrimitiveKind.Boolean),
+            IntegerLiteralNode intLit => new PrimitiveType(PrimitiveKind.Integer),
+            RealLiteralNode realLit => new PrimitiveType(PrimitiveKind.Real),
+            BooleanLiteralNode boolLit => new PrimitiveType(PrimitiveKind.Boolean),
             IdentifierNode id => CheckIdentifier(id),
             BinaryOperationNode binOp => CheckBinaryOperation(binOp),
             UnaryOperationNode unOp => CheckUnaryOperation(unOp),
@@ -740,6 +740,13 @@ public class SemanticAnalyzer
             ArrayInitializerNode arrInit => CheckArrayInitializer(arrInit),
             _ => null
         };
+        
+        if (type != null)
+        {
+            expression.Type = type;
+        }
+        
+        return type;
     }
     
     private Type? CheckIdentifier(IdentifierNode id)
@@ -751,6 +758,8 @@ public class SemanticAnalyzer
             return null;
         }
         
+        id.Symbol = symbol;
+        id.Type = symbol.Type;
         return symbol.Type;
     }
     
@@ -764,7 +773,7 @@ public class SemanticAnalyzer
             return null;
         }
         
-        return binOp.Operator switch
+        var resultType = binOp.Operator switch
         {
             "+" or "-" or "*" or "/" => CheckArithmeticOperation(binOp, leftType, rightType),
             "=" or "<>" => CheckComparisonOperation(binOp, leftType, rightType),
@@ -772,6 +781,13 @@ public class SemanticAnalyzer
             "and" or "or" => CheckLogicalOperation(binOp, leftType, rightType),
             _ => null
         };
+        
+        if (resultType != null)
+        {
+            binOp.Type = resultType;
+        }
+        
+        return resultType;
     }
     
     private Type? CheckArithmeticOperation(BinaryOperationNode binOp, Type leftType, Type rightType)
@@ -780,13 +796,17 @@ public class SemanticAnalyzer
         {
             if (leftPrim.Kind == PrimitiveKind.Integer && rightPrim.Kind == PrimitiveKind.Integer)
             {
-                return new PrimitiveType(PrimitiveKind.Integer);
+                var resultType = new PrimitiveType(PrimitiveKind.Integer);
+                binOp.Type = resultType;
+                return resultType;
             }
             
             if ((leftPrim.Kind == PrimitiveKind.Integer || leftPrim.Kind == PrimitiveKind.Real) &&
                 (rightPrim.Kind == PrimitiveKind.Integer || rightPrim.Kind == PrimitiveKind.Real))
             {
-                return new PrimitiveType(PrimitiveKind.Real);
+                var resultType = new PrimitiveType(PrimitiveKind.Real);
+                binOp.Type = resultType;
+                return resultType;
             }
         }
         
@@ -795,6 +815,7 @@ public class SemanticAnalyzer
         {
             if (commonPrim.Kind == PrimitiveKind.Integer || commonPrim.Kind == PrimitiveKind.Real)
             {
+                binOp.Type = commonPrim;
                 return commonPrim;
             }
         }
@@ -808,13 +829,17 @@ public class SemanticAnalyzer
     {
         if (leftType.IsCompatibleWith(rightType) || rightType.IsCompatibleWith(leftType))
         {
-            return new PrimitiveType(PrimitiveKind.Boolean);
+            var resultType = new PrimitiveType(PrimitiveKind.Boolean);
+            binOp.Type = resultType;
+            return resultType;
         }
         
         var commonType = PrimitiveType.GetCommonType(leftType, rightType);
         if (commonType != null)
         {
-            return new PrimitiveType(PrimitiveKind.Boolean);
+            var resultType = new PrimitiveType(PrimitiveKind.Boolean);
+            binOp.Type = resultType;
+            return resultType;
         }
         
         AddError(binOp.Line, binOp.Column, 
@@ -829,7 +854,9 @@ public class SemanticAnalyzer
             if ((leftPrim.Kind == PrimitiveKind.Integer || leftPrim.Kind == PrimitiveKind.Real) &&
                 (rightPrim.Kind == PrimitiveKind.Integer || rightPrim.Kind == PrimitiveKind.Real))
             {
-                return new PrimitiveType(PrimitiveKind.Boolean);
+                var resultType = new PrimitiveType(PrimitiveKind.Boolean);
+                binOp.Type = resultType;
+                return resultType;
             }
         }
         
@@ -838,7 +865,9 @@ public class SemanticAnalyzer
         {
             if (commonPrim.Kind == PrimitiveKind.Integer || commonPrim.Kind == PrimitiveKind.Real)
             {
-                return new PrimitiveType(PrimitiveKind.Boolean);
+                var resultType = new PrimitiveType(PrimitiveKind.Boolean);
+                binOp.Type = resultType;
+                return resultType;
             }
         }
         
@@ -853,6 +882,7 @@ public class SemanticAnalyzer
         if ((leftType.IsCompatibleWith(boolType) || boolType.IsCompatibleWith(leftType)) &&
             (rightType.IsCompatibleWith(boolType) || boolType.IsCompatibleWith(rightType)))
         {
+            binOp.Type = boolType;
             return boolType;
         }
         
@@ -865,6 +895,7 @@ public class SemanticAnalyzer
                 if (rightType is PrimitiveType rightPrim &&
                     (rightPrim.Kind == PrimitiveKind.Boolean || rightPrim.Kind == PrimitiveKind.Integer))
                 {
+                    binOp.Type = boolType;
                     return boolType;
                 }
             }
@@ -883,12 +914,19 @@ public class SemanticAnalyzer
             return null;
         }
         
-        return unOp.Operator switch
+        var resultType = unOp.Operator switch
         {
             "-" => CheckUnaryMinus(unOp, operandType),
             "not" => CheckUnaryNot(unOp, operandType),
             _ => null
         };
+        
+        if (resultType != null)
+        {
+            unOp.Type = resultType;
+        }
+        
+        return resultType;
     }
     
     private Type? CheckUnaryMinus(UnaryOperationNode unOp, Type operandType)
@@ -896,6 +934,7 @@ public class SemanticAnalyzer
         if (operandType is PrimitiveType prim && 
             (prim.Kind == PrimitiveKind.Integer || prim.Kind == PrimitiveKind.Real))
         {
+            unOp.Type = operandType;
             return operandType;
         }
         
@@ -909,11 +948,13 @@ public class SemanticAnalyzer
         var boolType = new PrimitiveType(PrimitiveKind.Boolean);
         if (operandType.IsCompatibleWith(boolType) || boolType.IsCompatibleWith(operandType))
         {
+            unOp.Type = boolType;
             return boolType;
         }
         
         if (operandType is PrimitiveType prim && prim.Kind == PrimitiveKind.Integer)
         {
+            unOp.Type = boolType;
             return boolType;
         }
         
@@ -951,6 +992,7 @@ public class SemanticAnalyzer
             {
                 AddError(arrAccess.Index.Line, arrAccess.Index.Column, 
                     $"Array index must be integer, got {indexType.Name}");
+                arrAccess.Type = arrType.ElementType;
                 return arrType.ElementType;
             }
         }
@@ -976,6 +1018,7 @@ public class SemanticAnalyzer
             }
         }
         
+        arrAccess.Type = arrType.ElementType;
         return arrType.ElementType;
     }
     
@@ -1001,6 +1044,7 @@ public class SemanticAnalyzer
             return null;
         }
         
+        recAccess.Type = fieldType;
         return fieldType;
     }
     
@@ -1025,6 +1069,7 @@ public class SemanticAnalyzer
             {
                 AddError(call.Line, call.Column, 
                     $"Routine '{call.RoutineName}' is forward declared but has no full definition");
+                call.Type = symbol.Type;
                 return symbol.Type;
             }
         }
@@ -1032,6 +1077,7 @@ public class SemanticAnalyzer
         var parameters = symbol.Attributes.GetValueOrDefault("Parameters") as List<ParameterNode>;
         if (parameters == null)
         {
+            call.Type = symbol.Type;
             return symbol.Type;
         }
         
@@ -1039,6 +1085,7 @@ public class SemanticAnalyzer
         {
             AddError(call.Line, call.Column, 
                 $"Argument count mismatch: expected {parameters.Count}, got {call.Arguments.Count}");
+            call.Type = symbol.Type;
             return symbol.Type;
         }
         
@@ -1047,6 +1094,7 @@ public class SemanticAnalyzer
             CheckArgumentType(call.Arguments[i], parameters[i], i + 1, call.RoutineName);
         }
         
+        call.Type = symbol.Type;
         return symbol.Type;
     }
     
@@ -1129,7 +1177,9 @@ public class SemanticAnalyzer
             ["start"] = intType,
             ["end"] = intType
         };
-        return new RecordType(fields);
+        var resultType = new RecordType(fields);
+        range.Type = resultType;
+        return resultType;
     }
     
     private Type? CheckArrayInitializer(ArrayInitializerNode arrInit)
@@ -1159,7 +1209,9 @@ public class SemanticAnalyzer
             }
         }
         
-        return new ArrayType(elementType, arrInit.Elements.Count);
+        var resultType = new ArrayType(elementType, arrInit.Elements.Count);
+        arrInit.Type = resultType;
+        return resultType;
     }
     
     private bool IsModifiable(ExpressionNode expression)
