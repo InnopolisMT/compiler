@@ -522,15 +522,19 @@ public class SemanticAnalyzer
             return;
         }
         
-        if (!valueType.IsCompatibleWith(targetType) && !targetType.IsCompatibleWith(valueType))
+        if (valueType.IsCompatibleWith(targetType))
         {
-            var commonType = PrimitiveType.GetCommonType(valueType, targetType);
-            if (commonType == null)
-            {
-                AddError(assign.Line, assign.Column, 
-                    $"Type mismatch in assignment: cannot assign {valueType.Name} to {targetType.Name}");
-            }
+            return;
         }
+        
+        var commonType = PrimitiveType.GetCommonType(valueType, targetType);
+        if (commonType != null && commonType.IsCompatibleWith(targetType))
+        {
+            return;
+        }
+        
+        AddError(assign.Line, assign.Column, 
+            $"Type mismatch in assignment: cannot assign {valueType.Name} to {targetType.Name}");
     }
     
     private void CheckIfStatement(IfStatementNode ifStmt)
