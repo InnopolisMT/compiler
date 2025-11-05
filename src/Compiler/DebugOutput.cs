@@ -49,6 +49,13 @@ namespace Compiler
             }
         }
 
+        private static void PrintFieldDeclaration(FieldDeclarationNode fieldDecl, string indent)
+        {
+            Console.WriteLine($"{indent}Name: \"{fieldDecl.Name}\"");
+            Console.WriteLine($"{indent}Type:");
+            PrintType(fieldDecl.Type, indent + "  ");
+        }
+
         private static void PrintDeclaration(DeclarationNode decl, string indent)
         {
             switch (decl)
@@ -122,8 +129,8 @@ namespace Compiler
                     Console.WriteLine($"{indent}  Fields: [{rec.Fields.Count}]");
                     for (int i = 0; i < rec.Fields.Count; i++)
                     {
-                        Console.WriteLine($"{indent}    [{i}] VariableDeclarationNode");
-                        PrintDeclaration(rec.Fields[i], indent + "      ");
+                        Console.WriteLine($"{indent}    [{i}] FieldDeclarationNode");
+                        PrintFieldDeclaration(rec.Fields[i], indent + "      ");
                     }
                     break;
             }

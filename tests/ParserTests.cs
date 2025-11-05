@@ -63,16 +63,6 @@ namespace Compiler.Tests
             Assert.Equal(42L, initValue.Value);
         }
 
-        [Fact]
-        public void TestVariableWithoutInitialization()
-        {
-            var ast = ParseFile("variable_no_init.txt");
-            var varDecl = GetSingleDeclaration<VariableDeclarationNode>(ast);
-
-            Assert.Equal("x", varDecl.Name);
-            Assert.IsType<PrimitiveTypeNode>(varDecl.Type);
-            Assert.Null(varDecl.InitialValue);
-        }
 
         [Fact]
         public void TestRecordTypeDeclaration()

@@ -441,11 +441,11 @@ public class SemanticAnalyzer
 
     private TypeNode CreateRecordTypeNodeFromSemanticType(RecordType recType, ExpressionNode? contextExpr)
     {
-        var fields = new List<VariableDeclarationNode>();
+        var fields = new List<FieldDeclarationNode>();
         foreach (var (fieldName, fieldType) in recType.Fields)
         {
             var fieldTypeNode = CreateTypeNodeFromSemanticType(fieldType);
-            fields.Add(new VariableDeclarationNode
+            fields.Add(new FieldDeclarationNode
             {
                 Name = fieldName,
                 Type = fieldTypeNode

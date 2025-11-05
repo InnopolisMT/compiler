@@ -134,9 +134,9 @@ ArrayType
     ;
 
 RecordType
-    : tkRecord VariableDeclarationList tkEnd
+    : tkRecord FieldDeclarationList tkEnd
         {
-            $$ = new RecordTypeNode { Fields = (List<VariableDeclarationNode>)$2 };
+            $$ = new RecordTypeNode { Fields = (List<FieldDeclarationNode>)$2 };
         }
     | tkRecord tkEnd
         {
@@ -144,15 +144,26 @@ RecordType
         }
     ;
 
-VariableDeclarationList
-    : VariableDeclaration
+FieldDeclaration
+    : tkVar tkIdentifier tkColon Type
         {
-            $$ = new List<VariableDeclarationNode> { (VariableDeclarationNode)$1 };
+            $$ = new FieldDeclarationNode
+            {
+                Name = (string)$2,
+                Type = (TypeNode)$4
+            };
         }
-    | VariableDeclarationList VariableDeclaration
+    ;
+
+FieldDeclarationList
+    : FieldDeclaration
         {
-            var list = (List<VariableDeclarationNode>)$1;
-            list.Add((VariableDeclarationNode)$2);
+            $$ = new List<FieldDeclarationNode> { (FieldDeclarationNode)$1 };
+        }
+    | FieldDeclarationList FieldDeclaration
+        {
+            var list = (List<FieldDeclarationNode>)$1;
+            list.Add((FieldDeclarationNode)$2);
             $$ = list;
         }
     ;

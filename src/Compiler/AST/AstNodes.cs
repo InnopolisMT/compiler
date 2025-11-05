@@ -43,6 +43,11 @@ public class ParameterNode : AstNode
     public string Name { get; set; } = "";
     public TypeNode Type { get; set; } = null!;
 }
+public class FieldDeclarationNode : AstNode
+{
+    public string Name { get; set; } = "";
+    public TypeNode Type { get; set; } = null!;
+}
 public class BodyNode : AstNode
 {
     public List<DeclarationNode> Declarations { get; set; } = new();
@@ -68,7 +73,7 @@ public class ArrayTypeNode : TypeNode
 
 public class RecordTypeNode : TypeNode
 {
-    public List<VariableDeclarationNode> Fields { get; set; } = new();
+    public List<FieldDeclarationNode> Fields { get; set; } = new();
 }
 
 public abstract class StatementNode : AstNode

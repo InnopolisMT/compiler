@@ -1,20 +1,20 @@
-var x : integer is 42
-var y : real is 3.14
 var flag : boolean is true
 
-routine test(): integer
+type Address is record
+    var streetCode : integer
+    var number : integer
+end
+
+routine test(x: integer, z: real): real
 
 routine main() 
 is
-    print x
-    print y
     print flag
 end
 
-routine test(): integer
+routine test(x: integer, z: real): real
 is
-    var z : integer is 30
-    var result : real
-    result := z * 24 + 39 - 98
-    return result
+    var zalupa is 4
+    z := 30.356
+    return z + x - 15
 end
