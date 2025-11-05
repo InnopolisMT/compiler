@@ -347,7 +347,22 @@ public class SemanticAnalyzer
             return null;
         }
         
-        return new ArrayType(elementType, 0);
+        var size = EvaluateConstantInteger(arr.Size);
+        if (size == null)
+        {
+            AddError(arr.Size.Line, arr.Size.Column, 
+                "Array size must be a constant integer expression");
+            return new ArrayType(elementType, 0);
+        }
+        
+        if (size.Value <= 0)
+        {
+            AddError(arr.Size.Line, arr.Size.Column, 
+                "Array size must be positive");
+            return new ArrayType(elementType, 0);
+        }
+        
+        return new ArrayType(elementType, (int)size.Value);
     }
     
     private Type? ResolveRecordType(RecordTypeNode rec)
@@ -936,6 +951,28 @@ public class SemanticAnalyzer
             {
                 AddError(arrAccess.Index.Line, arrAccess.Index.Column, 
                     $"Array index must be integer, got {indexType.Name}");
+                return arrType.ElementType;
+            }
+        }
+        
+        var indexValue = EvaluateConstantInteger(arrAccess.Index);
+        if (indexValue != null)
+        {
+            if (arrType.Size > 0)
+            {
+                if (indexValue.Value < 1 || indexValue.Value > arrType.Size)
+                {
+                    AddError(arrAccess.Index.Line, arrAccess.Index.Column, 
+                        $"Array index {indexValue.Value} is out of bounds. Array size is {arrType.Size}, valid range is 1..{arrType.Size}");
+                }
+            }
+        }
+        else
+        {
+            if (arrType.Size > 0)
+            {
+                AddError(arrAccess.Index.Line, arrAccess.Index.Column, 
+                    $"Warning: Array index cannot be statically verified. Array size is {arrType.Size}, ensure index is in range 1..{arrType.Size}");
             }
         }
         
@@ -1196,6 +1233,52 @@ public class SemanticAnalyzer
         }
         
         return false;
+    }
+    
+    private long? EvaluateConstantInteger(ExpressionNode expression)
+    {
+        return expression switch
+        {
+            IntegerLiteralNode intLit => intLit.Value,
+            BinaryOperationNode binOp => EvaluateConstantBinaryOperation(binOp),
+            UnaryOperationNode unOp => EvaluateConstantUnaryOperation(unOp),
+            _ => null
+        };
+    }
+    
+    private long? EvaluateConstantBinaryOperation(BinaryOperationNode binOp)
+    {
+        var left = EvaluateConstantInteger(binOp.Left);
+        var right = EvaluateConstantInteger(binOp.Right);
+        
+        if (left == null || right == null)
+        {
+            return null;
+        }
+        
+        return binOp.Operator switch
+        {
+            "+" => left.Value + right.Value,
+            "-" => left.Value - right.Value,
+            "*" => left.Value * right.Value,
+            "/" => right.Value != 0 ? left.Value / right.Value : null,
+            _ => null
+        };
+    }
+    
+    private long? EvaluateConstantUnaryOperation(UnaryOperationNode unOp)
+    {
+        var operand = EvaluateConstantInteger(unOp.Operand);
+        if (operand == null)
+        {
+            return null;
+        }
+        
+        return unOp.Operator switch
+        {
+            "-" => -operand.Value,
+            _ => null
+        };
     }
     
     private void AddError(int line, int column, string message)
