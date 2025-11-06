@@ -1,26 +1,42 @@
-var flag : boolean is true
+var x : integer is 0
+var y : integer is 0
+var flag : boolean is true and false
+var a : integer is 2
+var b : integer is 3
 
-type Address is record
-    var streetCode : integer
-    var number : integer
-end
-
-routine test(x: integer, z: real): real
-
-routine main() 
+routine main()
 is
-    print flag
-end
-
-routine test(x: integer, z: real): real
-is
-    var zalupa is 4
-    for i in 1..10 reverse loop
-        z := z + i
-    end
-    if z > 30 then
-        return z
+    if (true) then
+        print x
+        x := 5
     else
-        return 0
+        print 0
+    end
+
+    if (3 < 5) then
+        print 1
+    else
+        print 0
+    end
+
+    if (true and false) then
+        y := 100
+    else
+        y := 200
+    end
+
+    while (false) loop
+        y := y + 1
+    end
+
+    y := 1 + 2 * 3
+
+    if (a + b = 5) then
+        print 42
+    end
+
+    if (flag) then
+        print 999
     end
 end
+

@@ -1,7 +1,9 @@
+using System;
+using System.Collections.Generic;
+using System.Text;
 using Compiler.AST;
 using Compiler.Lexer;
 using Compiler.TreeView;
-using System.Text;
 
 namespace Compiler
 {
@@ -18,11 +20,13 @@ namespace Compiler
             }
         }
 
-        public static void GenerateAndPrintDebugInfo(string input, string filePath, ProgramNode ast)
+        public static void GenerateAndPrintDebugInfo(string input, string filePath, ProgramNode ast, bool printConsole = true)
         {
             var visualizer = new TreeVisualizer();
             string html = visualizer.GenerateTreeHtml(ast, filePath);
             File.WriteAllText("ast_visualization.html", html, Encoding.UTF8);
+
+            if (!printConsole) return;
 
             Console.WriteLine("LEXICAL ANALYSIS:");
             var debugLexer = new LexerClass(input);
@@ -39,267 +43,435 @@ namespace Compiler
 
         public static void PrintDetailedAst(ProgramNode program)
         {
-            Console.WriteLine("ProgramNode");
-            Console.WriteLine($"  Declarations: [{program.Declarations.Count}]");
-
-            for (int i = 0; i < program.Declarations.Count; i++)
+            if (program == null)
             {
-                Console.WriteLine($"\n  [{i}] {program.Declarations[i].GetType().Name}");
-                PrintDeclaration(program.Declarations[i], "    ");
+                Console.WriteLine("ProgramNode (null)");
+                return;
+            }
+
+            Console.WriteLine(Ansi.Node("ProgramNode"));
+
+            var properties = new List<(string Label, Action<string>? Child)>
+            {
+                (FormatCount("Declarations", program.Declarations.Count), program.Declarations.Count > 0
+                    ? new Action<string>(indent => PrintDeclarationList(program.Declarations, indent))
+                    : null)
+            };
+
+            PrintProperties(string.Empty, properties);
+        }
+
+        private static class Ansi
+        {
+            private const string Reset = "\x1b[0m";
+            private const string Blue = "\x1b[34m";
+            private const string Green = "\x1b[32m";
+            private const string Cyan = "\x1b[36m";
+            private const string Yellow = "\x1b[33m";
+            private const string Faint = "\x1b[2m";
+
+            internal static bool Enabled { get; } = !Console.IsOutputRedirected && Environment.GetEnvironmentVariable("NO_COLOR") == null;
+
+            internal static string Node(string text) => Enabled ? $"{Blue}{text}{Reset}" : text;
+            internal static string Label(string text) => Enabled ? $"{Green}{text}{Reset}" : text;
+            internal static string Value(string text) => Enabled ? $"{Cyan}{text}{Reset}" : text;
+            internal static string Index(string text) => Enabled ? $"{Yellow}{text}{Reset}" : text;
+            internal static string Muted(string text) => Enabled ? $"{Faint}{text}{Reset}" : text;
+        }
+
+        private static string FormatLabel(string label) => $"{Ansi.Label(label)}:";
+
+        private static string FormatLabelValue(string label, string value) => $"{Ansi.Label(label)}: {value}";
+
+        private static string FormatCount(string label, int count, string? unit = null)
+        {
+            string suffix = unit != null ? $"[{count} {unit}]" : $"[{count}]";
+            return $"{Ansi.Label(label)} {Ansi.Index(suffix)}";
+        }
+
+        private static void PrintTreeLine(string indent, bool isLast, string text)
+        {
+            Console.Write(indent);
+            Console.Write(isLast ? "`- " : "|- ");
+            Console.WriteLine(text);
+        }
+
+        private static string ExtendIndent(string indent, bool parentIsLast)
+        {
+            return indent + (parentIsLast ? "   " : "|  ");
+        }
+
+        private static void PrintProperties(string indent, IReadOnlyList<(string Label, Action<string>? Child)> properties)
+        {
+            for (int i = 0; i < properties.Count; i++)
+            {
+                var (label, child) = properties[i];
+                bool isLast = i == properties.Count - 1;
+                PrintTreeLine(indent, isLast, label);
+                if (child != null)
+                {
+                    string nextIndent = ExtendIndent(indent, isLast);
+                    child(nextIndent);
+                }
+            }
+        }
+
+        private static void PrintDeclarationList(IReadOnlyList<DeclarationNode> declarations, string indent)
+        {
+            for (int i = 0; i < declarations.Count; i++)
+            {
+                bool isLast = i == declarations.Count - 1;
+                var declaration = declarations[i];
+                string header = $"{Ansi.Index($"[{i}]")} {Ansi.Node(declaration.GetType().Name)}";
+                PrintDeclaration(declaration, indent, header, isLast);
+            }
+        }
+
+        private static void PrintDeclaration(DeclarationNode decl, string indent, string header, bool isLast)
+        {
+            PrintTreeLine(indent, isLast, header);
+            string childIndent = ExtendIndent(indent, isLast);
+
+            switch (decl)
+            {
+                case VariableDeclarationNode varDecl:
+                    var variableProps = new List<(string, Action<string>?)>
+                    {
+                        (FormatLabelValue("Name", Ansi.Value($"\"{varDecl.Name}\"")), null),
+                        (FormatLabel("Type"), varDecl.Type != null
+                            ? new Action<string>(typeIndent => PrintType(varDecl.Type, typeIndent, true))
+                            : new Action<string>(typeIndent => PrintTreeLine(typeIndent, true, Ansi.Muted("(not specified)"))))
+                    };
+
+                    if (varDecl.InitialValue != null)
+                    {
+                        variableProps.Add((FormatLabel("InitialValue"), valueIndent => PrintExpression(varDecl.InitialValue, valueIndent, true)));
+                    }
+
+                    PrintProperties(childIndent, variableProps);
+                    break;
+
+                case TypeDeclarationNode typeDecl:
+                    var typeDeclProps = new List<(string, Action<string>?)>
+                    {
+                        (FormatLabelValue("Name", Ansi.Value($"\"{typeDecl.Name}\"")), null),
+                        (FormatLabel("Type"), typeDecl.Type != null
+                            ? new Action<string>(typeIndent => PrintType(typeDecl.Type, typeIndent, true))
+                            : new Action<string>(typeIndent => PrintTreeLine(typeIndent, true, Ansi.Muted("(not specified)"))))
+                    };
+
+                    PrintProperties(childIndent, typeDeclProps);
+                    break;
+
+                case RoutineDeclarationNode routineDecl:
+                    var routineProps = new List<(string, Action<string>?)>
+                    {
+                        (FormatLabelValue("Name", Ansi.Value($"\"{routineDecl.Name}\"")), null),
+                        (FormatCount("Parameters", routineDecl.Parameters.Count), routineDecl.Parameters.Count > 0
+                            ? new Action<string>(paramIndent => PrintParameterList(routineDecl.Parameters, paramIndent))
+                            : null)
+                    };
+
+                    if (routineDecl.ReturnType != null)
+                    {
+                        routineProps.Add((FormatLabel("ReturnType"), typeIndent => PrintType(routineDecl.ReturnType, typeIndent, true)));
+                    }
+
+                    routineProps.Add(routineDecl.Body != null
+                        ? (FormatLabel("Body"), new Action<string>(bodyIndent => PrintBody(routineDecl.Body, bodyIndent)))
+                        : (FormatLabelValue("Body", Ansi.Muted("(forward declaration)")), null));
+
+                    PrintProperties(childIndent, routineProps);
+                    break;
+            }
+        }
+
+        private static void PrintParameterList(IReadOnlyList<ParameterNode> parameters, string indent)
+        {
+            for (int i = 0; i < parameters.Count; i++)
+            {
+                bool isLast = i == parameters.Count - 1;
+                var parameter = parameters[i];
+                PrintTreeLine(indent, isLast, $"{Ansi.Index($"[{i}]")} {Ansi.Node("Parameter")}");
+                string childIndent = ExtendIndent(indent, isLast);
+
+                var parameterProps = new List<(string, Action<string>?)>
+                {
+                    (FormatLabelValue("Name", Ansi.Value($"\"{parameter.Name}\"")), null),
+                    (FormatLabel("Type"), parameter.Type != null
+                        ? new Action<string>(typeIndent => PrintType(parameter.Type, typeIndent, true))
+                        : new Action<string>(typeIndent => PrintTreeLine(typeIndent, true, Ansi.Muted("(not specified)"))))
+                };
+
+                PrintProperties(childIndent, parameterProps);
             }
         }
 
         private static void PrintFieldDeclaration(FieldDeclarationNode fieldDecl, string indent)
         {
-            Console.WriteLine($"{indent}Name: \"{fieldDecl.Name}\"");
-            Console.WriteLine($"{indent}Type:");
-            PrintType(fieldDecl.Type, indent + "  ");
-        }
-
-        private static void PrintDeclaration(DeclarationNode decl, string indent)
-        {
-            switch (decl)
+            var properties = new List<(string, Action<string>?)>
             {
-                case VariableDeclarationNode varDecl:
-                    Console.WriteLine($"{indent}Name: \"{varDecl.Name}\"");
-                    Console.WriteLine($"{indent}Type:");
-                    PrintType(varDecl.Type, indent + "  ");
-                    if (varDecl.InitialValue != null)
-                    {
-                        Console.WriteLine($"{indent}InitialValue:");
-                        PrintExpression(varDecl.InitialValue, indent + "  ");
-                    }
-                    break;
+                (FormatLabelValue("Name", Ansi.Value($"\"{fieldDecl.Name}\"")), null),
+                (FormatLabel("Type"), fieldDecl.Type != null
+                    ? new Action<string>(typeIndent => PrintType(fieldDecl.Type, typeIndent, true))
+                    : new Action<string>(typeIndent => PrintTreeLine(typeIndent, true, Ansi.Muted("(not specified)"))))
+            };
 
-                case TypeDeclarationNode typeDecl:
-                    Console.WriteLine($"{indent}Name: \"{typeDecl.Name}\"");
-                    Console.WriteLine($"{indent}Type:");
-                    PrintType(typeDecl.Type, indent + "  ");
-                    break;
-
-                case RoutineDeclarationNode routineDecl:
-                    Console.WriteLine($"{indent}Name: \"{routineDecl.Name}\"");
-                    Console.WriteLine($"{indent}Parameters: [{routineDecl.Parameters.Count}]");
-                    for (int i = 0; i < routineDecl.Parameters.Count; i++)
-                    {
-                        Console.WriteLine($"{indent}  [{i}] Parameter");
-                        Console.WriteLine($"{indent}    Name: \"{routineDecl.Parameters[i].Name}\"");
-                        Console.WriteLine($"{indent}    Type:");
-                        PrintType(routineDecl.Parameters[i].Type, indent + "      ");
-                    }
-                    if (routineDecl.ReturnType != null)
-                    {
-                        Console.WriteLine($"{indent}ReturnType:");
-                        PrintType(routineDecl.ReturnType, indent + "  ");
-                    }
-                    if (routineDecl.Body != null)
-                    {
-                        Console.WriteLine($"{indent}Body:");
-                        PrintBody(routineDecl.Body, indent + "  ");
-                    }
-                    else
-                    {
-                        Console.WriteLine($"{indent}Body: (forward declaration)");
-                    }
-                    break;
-            }
-        }
-
-        private static void PrintType(TypeNode type, string indent)
-        {
-            Console.WriteLine($"{indent}{type.GetType().Name}");
-            switch (type)
-            {
-                case PrimitiveTypeNode prim:
-                    Console.WriteLine($"{indent}  TypeName: \"{prim.TypeName}\"");
-                    break;
-
-                case UserTypeNode user:
-                    Console.WriteLine($"{indent}  TypeName: \"{user.TypeName}\"");
-                    break;
-
-                case ArrayTypeNode arr:
-                    Console.WriteLine($"{indent}  Size:");
-                    PrintExpression(arr.Size, indent + "    ");
-                    Console.WriteLine($"{indent}  ElementType:");
-                    PrintType(arr.ElementType, indent + "    ");
-                    break;
-
-                case RecordTypeNode rec:
-                    Console.WriteLine($"{indent}  Fields: [{rec.Fields.Count}]");
-                    for (int i = 0; i < rec.Fields.Count; i++)
-                    {
-                        Console.WriteLine($"{indent}    [{i}] FieldDeclarationNode");
-                        PrintFieldDeclaration(rec.Fields[i], indent + "      ");
-                    }
-                    break;
-            }
+            PrintProperties(indent, properties);
         }
 
         private static void PrintBody(BodyNode body, string indent)
         {
-            Console.WriteLine($"{indent}Declarations: [{body.Declarations.Count}]");
-            for (int i = 0; i < body.Declarations.Count; i++)
+            var properties = new List<(string, Action<string>?)>
             {
-                Console.WriteLine($"{indent}  [{i}] {body.Declarations[i].GetType().Name}");
-                PrintDeclaration(body.Declarations[i], indent + "    ");
-            }
+                (FormatCount("Declarations", body.Declarations.Count), body.Declarations.Count > 0
+                    ? new Action<string>(declIndent => PrintDeclarationList(body.Declarations, declIndent))
+                    : null),
+                (FormatCount("Statements", body.Statements.Count), body.Statements.Count > 0
+                    ? new Action<string>(stmtIndent => PrintStatementList(body.Statements, stmtIndent))
+                    : null)
+            };
 
-            Console.WriteLine($"{indent}Statements: [{body.Statements.Count}]");
-            for (int i = 0; i < body.Statements.Count; i++)
+            PrintProperties(indent, properties);
+        }
+
+        private static void PrintStatementList(IReadOnlyList<StatementNode> statements, string indent)
+        {
+            for (int i = 0; i < statements.Count; i++)
             {
-                Console.WriteLine($"{indent}  [{i}] {body.Statements[i].GetType().Name}");
-                PrintStatement(body.Statements[i], indent + "    ");
+                bool isLast = i == statements.Count - 1;
+                var statement = statements[i];
+                string header = $"{Ansi.Index($"[{i}]")} {Ansi.Node(statement.GetType().Name)}";
+                PrintStatement(statement, indent, header, isLast);
             }
         }
 
-        private static void PrintStatement(StatementNode stmt, string indent)
+        private static void PrintStatement(StatementNode stmt, string indent, string header, bool isLast)
         {
+            PrintTreeLine(indent, isLast, header);
+            string childIndent = ExtendIndent(indent, isLast);
+
             switch (stmt)
             {
                 case AssignmentNode assign:
-                    Console.WriteLine($"{indent}Target:");
-                    PrintExpression(assign.Target, indent + "  ");
-                    Console.WriteLine($"{indent}Value:");
-                    PrintExpression(assign.Value, indent + "  ");
+                    var assignmentProps = new List<(string, Action<string>?)>
+                    {
+                        (FormatLabel("Target"), targetIndent => PrintExpression(assign.Target, targetIndent, true)),
+                        (FormatLabel("Value"), valueIndent => PrintExpression(assign.Value, valueIndent, true))
+                    };
+
+                    PrintProperties(childIndent, assignmentProps);
                     break;
 
                 case IfStatementNode ifStmt:
-                    Console.WriteLine($"{indent}Condition:");
-                    PrintExpression(ifStmt.Condition, indent + "  ");
-                    Console.WriteLine($"{indent}ThenBody: [{ifStmt.ThenBody.Count} statements]");
-                    for (int i = 0; i < ifStmt.ThenBody.Count; i++)
+                    var ifProps = new List<(string, Action<string>?)>
                     {
-                        Console.WriteLine($"{indent}  [{i}] {ifStmt.ThenBody[i].GetType().Name}");
-                        PrintStatement(ifStmt.ThenBody[i], indent + "    ");
-                    }
+                        (FormatLabel("Condition"), conditionIndent => PrintExpression(ifStmt.Condition, conditionIndent, true)),
+                        (FormatCount("ThenBody", ifStmt.ThenBody.Count, "statements"), ifStmt.ThenBody.Count > 0
+                            ? new Action<string>(thenIndent => PrintStatementList(ifStmt.ThenBody, thenIndent))
+                            : null)
+                    };
+
                     if (ifStmt.ElseBody.Count > 0)
                     {
-                        Console.WriteLine($"{indent}ElseBody: [{ifStmt.ElseBody.Count} statements]");
-                        for (int i = 0; i < ifStmt.ElseBody.Count; i++)
-                        {
-                            Console.WriteLine($"{indent}  [{i}] {ifStmt.ElseBody[i].GetType().Name}");
-                            PrintStatement(ifStmt.ElseBody[i], indent + "    ");
-                        }
+                        ifProps.Add((FormatCount("ElseBody", ifStmt.ElseBody.Count, "statements"), elseIndent => PrintStatementList(ifStmt.ElseBody, elseIndent)));
                     }
+
+                    PrintProperties(childIndent, ifProps);
                     break;
 
                 case WhileLoopNode whileLoop:
-                    Console.WriteLine($"{indent}Condition:");
-                    PrintExpression(whileLoop.Condition, indent + "  ");
-                    Console.WriteLine($"{indent}Body: [{whileLoop.Body.Count} statements]");
-                    for (int i = 0; i < whileLoop.Body.Count; i++)
+                    var whileProps = new List<(string, Action<string>?)>
                     {
-                        Console.WriteLine($"{indent}  [{i}] {whileLoop.Body[i].GetType().Name}");
-                        PrintStatement(whileLoop.Body[i], indent + "    ");
-                    }
+                        (FormatLabel("Condition"), conditionIndent => PrintExpression(whileLoop.Condition, conditionIndent, true)),
+                        (FormatCount("Body", whileLoop.Body.Count, "statements"), whileLoop.Body.Count > 0
+                            ? new Action<string>(bodyIndent => PrintStatementList(whileLoop.Body, bodyIndent))
+                            : null)
+                    };
+
+                    PrintProperties(childIndent, whileProps);
                     break;
 
                 case ForLoopNode forLoop:
-                    Console.WriteLine($"{indent}Variable: \"{forLoop.Variable}\"");
-                    Console.WriteLine($"{indent}IsReverse: {forLoop.IsReverse}");
-                    Console.WriteLine($"{indent}Range:");
-                    PrintExpression(forLoop.Range, indent + "  ");
-                    Console.WriteLine($"{indent}Body: [{forLoop.Body.Count} statements]");
-                    for (int i = 0; i < forLoop.Body.Count; i++)
+                    string reverseText = forLoop.IsReverse ? "true" : "false";
+                    var forProps = new List<(string, Action<string>?)>
                     {
-                        Console.WriteLine($"{indent}  [{i}] {forLoop.Body[i].GetType().Name}");
-                        PrintStatement(forLoop.Body[i], indent + "    ");
-                    }
+                        (FormatLabelValue("Variable", Ansi.Value($"\"{forLoop.Variable}\"")), null),
+                        (FormatLabelValue("IsReverse", Ansi.Value(reverseText)), null),
+                        (FormatLabel("Range"), rangeIndent => PrintExpression(forLoop.Range, rangeIndent, true)),
+                        (FormatCount("Body", forLoop.Body.Count, "statements"), forLoop.Body.Count > 0
+                            ? new Action<string>(bodyIndent => PrintStatementList(forLoop.Body, bodyIndent))
+                            : null)
+                    };
+
+                    PrintProperties(childIndent, forProps);
                     break;
 
                 case ReturnStatementNode retStmt:
+                    var returnProps = new List<(string, Action<string>?)>();
                     if (retStmt.Value != null)
                     {
-                        Console.WriteLine($"{indent}Value:");
-                        PrintExpression(retStmt.Value, indent + "  ");
+                        returnProps.Add((FormatLabel("Value"), valueIndent => PrintExpression(retStmt.Value, valueIndent, true)));
                     }
                     else
                     {
-                        Console.WriteLine($"{indent}(void return)");
+                        returnProps.Add((FormatLabelValue("Value", Ansi.Muted("(void return)")), null));
                     }
+
+                    PrintProperties(childIndent, returnProps);
                     break;
 
                 case PrintStatementNode printStmt:
-                    Console.WriteLine($"{indent}Expression:");
-                    PrintExpression(printStmt.Expression, indent + "  ");
+                    var printProps = new List<(string, Action<string>?)>
+                    {
+                        (FormatLabel("Expression"), exprIndent => PrintExpression(printStmt.Expression, exprIndent, true))
+                    };
+
+                    PrintProperties(childIndent, printProps);
                     break;
             }
         }
 
-        private static void PrintExpression(ExpressionNode expr, string indent)
+        private static void PrintExpression(ExpressionNode expr, string indent, bool isLast)
         {
-            Console.WriteLine($"{indent}{expr.GetType().Name}");
+            if (expr == null)
+            {
+                PrintTreeLine(indent, isLast, Ansi.Muted("(null expression)"));
+                return;
+            }
+
+            var properties = new List<(string, Action<string>?)>();
+
             switch (expr)
             {
                 case IntegerLiteralNode intLit:
-                    Console.WriteLine($"{indent}  Value: {intLit.Value}");
+                    properties.Add((FormatLabelValue("Value", Ansi.Value(intLit.Value.ToString())), null));
                     break;
 
                 case RealLiteralNode realLit:
-                    Console.WriteLine($"{indent}  Value: {realLit.Value}");
+                    properties.Add((FormatLabelValue("Value", Ansi.Value(realLit.Value.ToString())), null));
                     break;
 
                 case BooleanLiteralNode boolLit:
-                    Console.WriteLine($"{indent}  Value: {boolLit.Value}");
+                    string boolText = boolLit.Value ? "true" : "false";
+                    properties.Add((FormatLabelValue("Value", Ansi.Value(boolText)), null));
                     break;
 
                 case IdentifierNode id:
-                    Console.WriteLine($"{indent}  Name: \"{id.Name}\"");
+                    properties.Add((FormatLabelValue("Name", Ansi.Value($"\"{id.Name}\"")), null));
                     break;
 
                 case BinaryOperationNode binOp:
-                    Console.WriteLine($"{indent}  Operator: \"{binOp.Operator}\"");
-                    Console.WriteLine($"{indent}  Left:");
-                    PrintExpression(binOp.Left, indent + "    ");
-                    Console.WriteLine($"{indent}  Right:");
-                    PrintExpression(binOp.Right, indent + "    ");
+                    properties.Add((FormatLabelValue("Operator", Ansi.Value($"\"{binOp.Operator}\"")), null));
+                    properties.Add((FormatLabel("Left"), leftIndent => PrintExpression(binOp.Left, leftIndent, true)));
+                    properties.Add((FormatLabel("Right"), rightIndent => PrintExpression(binOp.Right, rightIndent, true)));
                     break;
 
                 case UnaryOperationNode unOp:
-                    Console.WriteLine($"{indent}  Operator: \"{unOp.Operator}\"");
-                    Console.WriteLine($"{indent}  Operand:");
-                    PrintExpression(unOp.Operand, indent + "    ");
+                    properties.Add((FormatLabelValue("Operator", Ansi.Value($"\"{unOp.Operator}\"")), null));
+                    properties.Add((FormatLabel("Operand"), operandIndent => PrintExpression(unOp.Operand, operandIndent, true)));
                     break;
 
                 case ArrayAccessNode arrAccess:
-                    Console.WriteLine($"{indent}  Array:");
-                    PrintExpression(arrAccess.Array, indent + "    ");
-                    Console.WriteLine($"{indent}  Index:");
-                    PrintExpression(arrAccess.Index, indent + "    ");
+                    properties.Add((FormatLabel("Array"), arrayIndent => PrintExpression(arrAccess.Array, arrayIndent, true)));
+                    properties.Add((FormatLabel("Index"), indexIndent => PrintExpression(arrAccess.Index, indexIndent, true)));
                     break;
 
                 case RecordAccessNode recAccess:
-                    Console.WriteLine($"{indent}  FieldName: \"{recAccess.FieldName}\"");
-                    Console.WriteLine($"{indent}  Record:");
-                    PrintExpression(recAccess.Record, indent + "    ");
+                    properties.Add((FormatLabelValue("FieldName", Ansi.Value($"\"{recAccess.FieldName}\"")), null));
+                    properties.Add((FormatLabel("Record"), recordIndent => PrintExpression(recAccess.Record, recordIndent, true)));
                     break;
 
                 case RoutineCallNode call:
-                    Console.WriteLine($"{indent}  RoutineName: \"{call.RoutineName}\"");
-                    Console.WriteLine($"{indent}  Arguments: [{call.Arguments.Count}]");
-                    for (int i = 0; i < call.Arguments.Count; i++)
-                    {
-                        Console.WriteLine($"{indent}    [{i}]");
-                        PrintExpression(call.Arguments[i], indent + "      ");
-                    }
+                    properties.Add((FormatLabelValue("RoutineName", Ansi.Value($"\"{call.RoutineName}\"")), null));
+                    properties.Add((FormatCount("Arguments", call.Arguments.Count), call.Arguments.Count > 0
+                        ? new Action<string>(argsIndent => PrintExpressionList(call.Arguments, argsIndent))
+                        : null));
                     break;
 
                 case RangeNode range:
-                    Console.WriteLine($"{indent}  Start:");
-                    PrintExpression(range.Start, indent + "    ");
-                    Console.WriteLine($"{indent}  End:");
-                    PrintExpression(range.End, indent + "    ");
+                    properties.Add((FormatLabel("Start"), startIndent => PrintExpression(range.Start, startIndent, true)));
+                    properties.Add((FormatLabel("End"), endIndent => PrintExpression(range.End, endIndent, true)));
                     break;
 
                 case ArrayInitializerNode arrInit:
-                    Console.WriteLine($"{indent}  Elements: [{arrInit.Elements.Count}]");
-                    for (int i = 0; i < arrInit.Elements.Count; i++)
-                    {
-                        Console.WriteLine($"{indent}    [{i}]");
-                        PrintExpression(arrInit.Elements[i], indent + "      ");
-                    }
+                    properties.Add((FormatCount("Elements", arrInit.Elements.Count), arrInit.Elements.Count > 0
+                        ? new Action<string>(elementsIndent => PrintExpressionList(arrInit.Elements, elementsIndent))
+                        : null));
                     break;
+            }
+
+            bool hasProperties = properties.Count > 0;
+            PrintTreeLine(indent, isLast, Ansi.Node(expr.GetType().Name));
+
+            if (hasProperties)
+            {
+                string nextIndent = ExtendIndent(indent, isLast);
+                PrintProperties(nextIndent, properties);
+            }
+        }
+
+        private static void PrintExpressionList(IReadOnlyList<ExpressionNode> expressions, string indent)
+        {
+            for (int i = 0; i < expressions.Count; i++)
+            {
+                bool isLast = i == expressions.Count - 1;
+                PrintTreeLine(indent, isLast, Ansi.Index($"[{i}]"));
+                string childIndent = ExtendIndent(indent, isLast);
+                PrintExpression(expressions[i], childIndent, isLast);
+            }
+        }
+
+        private static void PrintType(TypeNode type, string indent, bool isLast)
+        {
+            if (type == null)
+            {
+                PrintTreeLine(indent, isLast, Ansi.Muted("(null type)"));
+                return;
+            }
+
+            var properties = new List<(string, Action<string>?)>();
+
+            switch (type)
+            {
+                case PrimitiveTypeNode prim:
+                    properties.Add((FormatLabelValue("TypeName", Ansi.Value($"\"{prim.TypeName}\"")), null));
+                    break;
+
+                case UserTypeNode user:
+                    properties.Add((FormatLabelValue("TypeName", Ansi.Value($"\"{user.TypeName}\"")), null));
+                    break;
+
+                case ArrayTypeNode arr:
+                    properties.Add((FormatLabel("Size"), sizeIndent => PrintExpression(arr.Size, sizeIndent, true)));
+                    properties.Add((FormatLabel("ElementType"), typeIndent => PrintType(arr.ElementType, typeIndent, true)));
+                    break;
+
+                case RecordTypeNode rec:
+                    properties.Add((FormatCount("Fields", rec.Fields.Count), rec.Fields.Count > 0
+                        ? new Action<string>(fieldsIndent => PrintFieldList(rec.Fields, fieldsIndent))
+                        : null));
+                    break;
+            }
+
+            bool hasProperties = properties.Count > 0;
+            PrintTreeLine(indent, isLast, Ansi.Node(type.GetType().Name));
+
+            if (hasProperties)
+            {
+                string nextIndent = ExtendIndent(indent, isLast);
+                PrintProperties(nextIndent, properties);
+            }
+        }
+
+        private static void PrintFieldList(IReadOnlyList<FieldDeclarationNode> fields, string indent)
+        {
+            for (int i = 0; i < fields.Count; i++)
+            {
+                bool isLast = i == fields.Count - 1;
+                PrintTreeLine(indent, isLast, $"{Ansi.Index($"[{i}]")} {Ansi.Node(nameof(FieldDeclarationNode))}");
+                string childIndent = ExtendIndent(indent, isLast);
+                PrintFieldDeclaration(fields[i], childIndent);
             }
         }
     }

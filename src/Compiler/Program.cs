@@ -1,6 +1,7 @@
 ﻿using Compiler.Lexer;
 using Compiler.Parser;
 using Compiler.AST;
+using Compiler.Optimization;
 using Compiler.Semantic;
 
 namespace Compiler
@@ -132,8 +133,16 @@ namespace Compiler
             }
 
             lexer = new LexerClass(input);
+            DebugOutput.PrintLexicalAnalysis(lexer);
+            Console.WriteLine();
+
+            lexer = new LexerClass(input);
             var parser = new ParserFacade(lexer);
             ProgramNode ast = parser.Parse();
+
+            Console.WriteLine("AST after parsing:");
+            DebugOutput.PrintDetailedAst(ast);
+            Console.WriteLine();
 
             var semanticAnalyzer = new SemanticAnalyzer();
             Console.WriteLine("Semantic analysis...");
@@ -147,9 +156,16 @@ namespace Compiler
                 Environment.Exit(1);
             }
 
+            var constantFolder = new ConstantFolder();
+            constantFolder.Optimize(ast);
+
+            Console.WriteLine("Optimized AST:");
+            DebugOutput.PrintDetailedAst(ast);
+            Console.WriteLine();
+
             if (options.DebugMode)
             {
-                DebugOutput.GenerateAndPrintDebugInfo(input, options.FilePath, ast);
+                DebugOutput.GenerateAndPrintDebugInfo(input, options.FilePath, ast, printConsole: false);
             }
             else
             {
