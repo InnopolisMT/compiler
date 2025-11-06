@@ -4,8 +4,16 @@ var flag : boolean is true and false
 var a : integer is 2
 var b : integer is 3
 
+type TMyArray is array[5] integer
+
 routine main()
 is
+    var arr : TMyArray is [1, 2, 3, 4, 5]
+
+    for i in 10..5 reverse loop
+        print i
+    end
+
     if (true) then
         print x
         x := 5

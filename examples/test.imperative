@@ -1,27 +1,126 @@
-type Address is record
-    var streetCode : integer
-    var number : integer
+# Record type declaration
+type Vec2 is record
+    var x : integer
+    var y : integer
 end
 
-type Person is record
-    var age : integer
-    var addr : Address
+# User-defined type
+type MyInt is integer
+
+# Array type with expression size
+type RealArr is array[3 + 2 * 1] real
+
+# Global variables with magic numbers
+var g1 : integer is 1 + 2 * 3
+var g2 : real is (10 - 4) / 3.0
+var flags : array[3] boolean is [true, false, not false]
+
+# Forward declarations
+routine add(a : integer, b : integer) : integer
+routine alwaysTrue() : boolean
+routine alwaysFalse() : boolean
+routine factorial(n : integer) : integer
+routine util()
+
+# Routine definition matching forward declaration, magic numbers in return
+routine add(a : integer, b : integer) : integer
+is
+    var tmp : integer is 3 + 4
+    return a + b + (2 * 3 - 5) + tmp - 7
 end
 
-type IntArray is array[5] integer
+# Return boolean with magic number (always true)
+routine alwaysTrue() : boolean
+is
+    return 2 * 3 = 6
+end
 
-routine main ()
-    var arr : IntArray is [1, 2, 3, 4, 5]
+# Return boolean with unary not and magic number (always false)
+routine alwaysFalse() : boolean
+is
+    return not (2 * 3 = 6)
+end
 
-    person.name:=2351.1110
-    person.age:=300000
-    for i in person.age .. 50 loop
+# Void routine with arrays, conditions, loops
+routine util()
+is
+    var arr : array[3] integer is [1, 2, 3]
+    var idx : integer is 1 + 1
+    var alias : MyInt is 10 - 3
+    #print arr[idx]
+    #arr[1] := arr[idx]
+
+    # If without parentheses, magic number condition
+    if 1 < 2 then
+        print add(3, 4)
+    else
+        print 0
+    end
+
+    # If with parentheses, magic number condition
+    if (2 * 2 = 5) then
+        print 111
+    else
+        print 222
+    end
+
+    # While with magic number condition (always true)
+    while (10 - 10) = 0 loop
+        print 999
+    end
+
+    # While with routine call condition
+    while alwaysTrue() loop
+        print 1
+        return
+    end
+end
+
+# Routine with parameters, return type, while loop
+routine factorial(n : integer) : integer
+is
+    var result : integer is 1
+    var i : integer is 1
+    while i <= n loop
+        result := result * i
+        i := i + 1
+    end
+    return result
+end
+
+# Main routine with for loops, reverse, routine calls
+routine main()
+is
+    var total : integer is 0
+    var i : integer is 0
+
+    # For loop with range expression
+    for i in 1 .. (1 + 2) loop
+        total := total + i
         print i
     end
-    if (person.age = 5) then
-        print 5
+
+    # For loop with reverse
+    for i in 1 .. 5 reverse loop
+        print i
     end
-    for i in 1 .. 5 loop
-        print arr[i]
+
+    print add(10, 20)
+    print factorial(5)
+    
+    # If with routine call condition
+    if alwaysTrue() then
+        print 123
+    else
+        print 456
     end
+
+    if (alwaysFalse()) then
+        print 777
+    else
+        print 888
+    end
+
+    return
 end
+
