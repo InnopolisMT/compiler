@@ -1,6 +1,6 @@
 routine main()
 is
-    for i in reverse 10 .. 1 loop
+    for i in 10 .. 1 reverse loop
         print i
     end
 end

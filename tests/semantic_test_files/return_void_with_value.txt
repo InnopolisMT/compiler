@@ -1,0 +1,5 @@
+routine test()
+is
+    return 42
+end
+

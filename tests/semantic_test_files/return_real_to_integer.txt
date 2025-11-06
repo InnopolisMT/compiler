@@ -1,0 +1,5 @@
+routine test() : integer
+is
+    return 42.5
+end
+
