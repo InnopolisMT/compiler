@@ -6,6 +6,10 @@ namespace Compiler.Semantic;
 
 public class SemanticAnalyzer
 {
+    private static readonly PrimitiveType BooleanType = new(PrimitiveKind.Boolean);
+    private static readonly PrimitiveType IntegerType = new(PrimitiveKind.Integer);
+    private static readonly PrimitiveType RealType = new(PrimitiveKind.Real);
+
     private readonly SymbolTable _symbolTable;
     private readonly List<SemanticError> _errors;
     private RoutineDeclarationNode? _currentRoutine;
@@ -15,6 +19,8 @@ public class SemanticAnalyzer
     public IReadOnlyList<SemanticError> Errors => _errors;
     public bool HasErrors => _errors.Count > 0;
     public SymbolTable SymbolTable => _symbolTable;
+
+    private static bool AreCompatible(Type left, Type right) => left.IsCompatibleWith(right) || right.IsCompatibleWith(left);
 
     public SemanticAnalyzer()
     {
@@ -52,31 +58,19 @@ public class SemanticAnalyzer
 
     private void Pass1_Declarations(ProgramNode program)
     {
-        Pass1_TypeDeclarations(program);
-        Pass1_RoutineDeclarations(program);
+        foreach (var declaration in program.Declarations)
+        {
+            switch (declaration)
+            {
+                case TypeDeclarationNode typeDecl:
+                    ProcessTypeDeclaration(typeDecl);
+                    break;
+                case RoutineDeclarationNode routineDecl:
+                    ProcessRoutineDeclaration(routineDecl);
+                    break;
+            }
+        }
         Pass1_CheckForwardDeclarations(program);
-    }
-
-    private void Pass1_TypeDeclarations(ProgramNode program)
-    {
-        foreach (var declaration in program.Declarations)
-        {
-            if (declaration is TypeDeclarationNode typeDecl)
-            {
-                ProcessTypeDeclaration(typeDecl);
-            }
-        }
-    }
-
-    private void Pass1_RoutineDeclarations(ProgramNode program)
-    {
-        foreach (var declaration in program.Declarations)
-        {
-            if (declaration is RoutineDeclarationNode routineDecl)
-            {
-                ProcessRoutineDeclaration(routineDecl);
-            }
-        }
     }
 
     private void Pass1_CheckForwardDeclarations(ProgramNode program)
@@ -413,61 +407,6 @@ public class SemanticAnalyzer
         return fields.Count > 0 ? new RecordType(fields) : null;
     }
 
-    private TypeNode CreateTypeNodeFromSemanticType(Type semanticType, ExpressionNode? contextExpr = null)
-    {
-        return semanticType switch
-        {
-            PrimitiveType prim => new PrimitiveTypeNode { TypeName = prim.Name },
-            ArrayType arr => CreateArrayTypeNodeFromSemanticType(arr, contextExpr),
-            RecordType rec => CreateRecordTypeNodeFromSemanticType(rec, contextExpr),
-            _ => CreateUserTypeNodeFromSemanticType(semanticType)
-        };
-    }
-
-    private TypeNode CreateArrayTypeNodeFromSemanticType(ArrayType arrType, ExpressionNode? contextExpr)
-    {
-        int size = arrType.Size;
-        ExpressionNode sizeExpr = contextExpr is ArrayInitializerNode arrInit && arrInit.Elements.Count > 0
-            ? new IntegerLiteralNode { Value = arrInit.Elements.Count }
-            : new IntegerLiteralNode { Value = size };
-
-        var elementTypeNode = CreateTypeNodeFromSemanticType(arrType.ElementType);
-        return new ArrayTypeNode
-        {
-            Size = sizeExpr,
-            ElementType = elementTypeNode
-        };
-    }
-
-    private TypeNode CreateRecordTypeNodeFromSemanticType(RecordType recType, ExpressionNode? contextExpr)
-    {
-        var fields = new List<FieldDeclarationNode>();
-        foreach (var (fieldName, fieldType) in recType.Fields)
-        {
-            var fieldTypeNode = CreateTypeNodeFromSemanticType(fieldType);
-            fields.Add(new FieldDeclarationNode
-            {
-                Name = fieldName,
-                Type = fieldTypeNode
-            });
-        }
-        return new RecordTypeNode { Fields = fields };
-    }
-
-    private TypeNode CreateUserTypeNodeFromSemanticType(Type semanticType)
-    {
-        var typeName = semanticType.Name;
-        var symbol = _symbolTable.Lookup(typeName);
-        if (symbol != null && symbol.Kind == SymbolKind.Type)
-        {
-            if (symbol.DeclarationNode is TypeDeclarationNode typeDecl)
-            {
-                return new UserTypeNode { TypeName = typeDecl.Name };
-            }
-        }
-
-        return new PrimitiveTypeNode { TypeName = typeName };
-    }
 
     private void Pass2_TypeChecking(ProgramNode program)
     {
@@ -551,7 +490,7 @@ public class SemanticAnalyzer
                 return;
             }
 
-            varDecl.Type = CreateTypeNodeFromSemanticType(varType, varDecl.InitialValue);
+            varDecl.Type = TypeNodeFactory.CreateFromType(varType, varDecl.InitialValue, _symbolTable);
         }
         else
         {
@@ -564,15 +503,10 @@ public class SemanticAnalyzer
             if (varDecl.InitialValue != null)
             {
                 var valueType = DeriveType(varDecl.InitialValue);
-
-                if (valueType != null && !valueType.IsCompatibleWith(varType) && !varType.IsCompatibleWith(valueType))
+                if (valueType != null && !valueType.IsCompatibleWith(varType))
                 {
-                    var commonType = PrimitiveType.GetCommonType(valueType, varType);
-                    if (commonType == null)
-                    {
-                        AddError(varDecl.InitialValue.Line, varDecl.InitialValue.Column,
-                            $"Type mismatch: cannot assign {valueType.Name} to {varType.Name}");
-                    }
+                    AddError(varDecl.InitialValue.Line, varDecl.InitialValue.Column,
+                        $"Type mismatch: cannot assign {valueType.Name} to {varType.Name}");
                 }
             }
         }
@@ -729,91 +663,35 @@ public class SemanticAnalyzer
     {
         if (!IsModifiable(assign.Target))
         {
-            AddError(assign.Target.Line, assign.Target.Column,
-                "Assignment target must be a modifiable expression (variable, array element, or record field)");
+            AddError(assign.Target.Line, assign.Target.Column, "Assignment target must be modifiable");
             return;
         }
 
         var targetType = DeriveType(assign.Target);
         var valueType = DeriveType(assign.Value);
+        if (targetType != null && valueType != null && !valueType.IsCompatibleWith(targetType))
+            AddError(assign.Line, assign.Column, $"Type mismatch: cannot assign {valueType.Name} to {targetType.Name}");
+    }
 
-        if (targetType == null || valueType == null)
-        {
-            return;
-        }
-
-        if (valueType.IsCompatibleWith(targetType))
-        {
-            return;
-        }
-
-        var commonType = PrimitiveType.GetCommonType(valueType, targetType);
-        if (commonType != null && commonType.IsCompatibleWith(targetType))
-        {
-            return;
-        }
-
-        AddError(assign.Line, assign.Column,
-            $"Type mismatch in assignment: cannot assign {valueType.Name} to {targetType.Name}");
+    private void CheckBooleanCondition(ExpressionNode condition, int line, int column)
+    {
+        var conditionType = DeriveType(condition);
+        if (conditionType != null && !AreCompatible(conditionType, BooleanType) &&
+            !(conditionType is PrimitiveType { Kind: PrimitiveKind.Integer }))
+            AddError(line, column, $"Condition must be boolean, got {conditionType.Name}");
     }
 
     private void CheckIfStatement(IfStatementNode ifStmt)
     {
-        var conditionType = DeriveType(ifStmt.Condition);
-        if (conditionType != null)
-        {
-            var boolType = new PrimitiveType(PrimitiveKind.Boolean);
-
-            if (!conditionType.IsCompatibleWith(boolType) && !boolType.IsCompatibleWith(conditionType))
-            {
-                if (!(conditionType is PrimitiveType prim && prim.Kind == PrimitiveKind.Integer))
-                {
-                    var commonType = PrimitiveType.GetCommonType(conditionType, boolType);
-                    if (commonType == null)
-                    {
-                        AddError(ifStmt.Condition.Line, ifStmt.Condition.Column,
-                            $"Condition must be boolean, got {conditionType.Name}");
-                    }
-                }
-            }
-        }
-
-        foreach (var stmt in ifStmt.ThenBody)
-        {
-            CheckStatement(stmt);
-        }
-
-        foreach (var stmt in ifStmt.ElseBody)
-        {
-            CheckStatement(stmt);
-        }
+        CheckBooleanCondition(ifStmt.Condition, ifStmt.Condition.Line, ifStmt.Condition.Column);
+        foreach (var stmt in ifStmt.ThenBody) CheckStatement(stmt);
+        foreach (var stmt in ifStmt.ElseBody) CheckStatement(stmt);
     }
 
     private void CheckWhileLoop(WhileLoopNode whileLoop)
     {
-        var conditionType = DeriveType(whileLoop.Condition);
-        if (conditionType != null)
-        {
-            var boolType = new PrimitiveType(PrimitiveKind.Boolean);
-
-            if (!conditionType.IsCompatibleWith(boolType) && !boolType.IsCompatibleWith(conditionType))
-            {
-                if (!(conditionType is PrimitiveType prim && prim.Kind == PrimitiveKind.Integer))
-                {
-                    var commonType = PrimitiveType.GetCommonType(conditionType, boolType);
-                    if (commonType == null)
-                    {
-                        AddError(whileLoop.Condition.Line, whileLoop.Condition.Column,
-                            $"Condition must be boolean, got {conditionType.Name}");
-                    }
-                }
-            }
-        }
-
-        foreach (var stmt in whileLoop.Body)
-        {
-            CheckStatement(stmt);
-        }
+        CheckBooleanCondition(whileLoop.Condition, whileLoop.Condition.Line, whileLoop.Condition.Column);
+        foreach (var stmt in whileLoop.Body) CheckStatement(stmt);
     }
 
     private void CheckForLoop(ForLoopNode forLoop)
@@ -834,9 +712,7 @@ public class SemanticAnalyzer
         }
 
         _symbolTable.PushScope("for_loop");
-
-        var loopVarSymbol = new Symbol(forLoop.Variable, SymbolKind.Variable,
-            new PrimitiveType(PrimitiveKind.Integer))
+        var loopVarSymbol = new Symbol(forLoop.Variable, SymbolKind.Variable, IntegerType)
         {
             DeclarationNode = forLoop,
             Scope = _symbolTable.CurrentScope
@@ -856,50 +732,29 @@ public class SemanticAnalyzer
     {
         if (_currentRoutine == null)
         {
-            AddError(returnStmt.Line, returnStmt.Column,
-                "Return statement must be inside a routine");
+            AddError(returnStmt.Line, returnStmt.Column, "Return statement must be inside a routine");
             return;
         }
 
-        if (returnStmt.Value == null)
+        var hasValue = returnStmt.Value != null;
+        var expectsValue = _currentRoutine.ReturnType != null;
+
+        if (hasValue != expectsValue)
         {
-            if (_currentRoutine.ReturnType != null)
-            {
-                AddError(returnStmt.Line, returnStmt.Column,
-                    $"Routine '{_currentRoutine.Name}' expects a return value, but none provided");
-            }
-        }
-        else
-        {
-            if (_currentRoutine.ReturnType == null)
-            {
-                AddError(returnStmt.Line, returnStmt.Column,
-                    $"Routine '{_currentRoutine.Name}' does not return a value, but return statement provides one");
-            }
+            if (expectsValue)
+                AddError(returnStmt.Line, returnStmt.Column, $"Routine '{_currentRoutine.Name}' expects a return value, but none provided");
             else
-            {
-                var returnType = DeriveType(returnStmt.Value);
-                var expectedType = ResolveTypeNode(_currentRoutine.ReturnType);
+                AddError(returnStmt.Line, returnStmt.Column, $"Routine '{_currentRoutine.Name}' does not return a value, but return statement provides one");
+            return;
+        }
 
-                if (returnType == null || expectedType == null)
-                {
-                    return;
-                }
-
-                if (returnType.IsCompatibleWith(expectedType))
-                {
-                    return;
-                }
-
-                var commonType = PrimitiveType.GetCommonType(returnType, expectedType);
-                if (commonType != null && commonType.IsCompatibleWith(expectedType))
-                {
-                    return;
-                }
-
-                AddError(returnStmt.Value.Line, returnStmt.Value.Column,
+        if (hasValue && expectsValue)
+        {
+            var returnType = DeriveType(returnStmt.Value!);
+            var expectedType = ResolveTypeNode(_currentRoutine.ReturnType!);
+            if (returnType != null && expectedType != null && !returnType.IsCompatibleWith(expectedType))
+                AddError(returnStmt.Value!.Line, returnStmt.Value!.Column,
                     $"Return type mismatch in routine '{_currentRoutine.Name}': expected {expectedType.Name}, got {returnType.Name}");
-            }
         }
     }
 
@@ -919,9 +774,9 @@ public class SemanticAnalyzer
 
         Type? type = expression switch
         {
-            IntegerLiteralNode intLit => new PrimitiveType(PrimitiveKind.Integer),
-            RealLiteralNode realLit => new PrimitiveType(PrimitiveKind.Real),
-            BooleanLiteralNode boolLit => new PrimitiveType(PrimitiveKind.Boolean),
+            IntegerLiteralNode => IntegerType,
+            RealLiteralNode => RealType,
+            BooleanLiteralNode => BooleanType,
             IdentifierNode id => CheckIdentifier(id),
             BinaryOperationNode binOp => CheckBinaryOperation(binOp),
             UnaryOperationNode unOp => CheckUnaryOperation(unOp),
@@ -983,177 +838,98 @@ public class SemanticAnalyzer
         return resultType;
     }
 
+    private static bool IsNumeric(PrimitiveType prim) => prim.Kind == PrimitiveKind.Integer || prim.Kind == PrimitiveKind.Real;
+
     private Type? CheckArithmeticOperation(BinaryOperationNode binOp, Type leftType, Type rightType)
     {
         if (leftType is PrimitiveType leftPrim && rightType is PrimitiveType rightPrim)
         {
             if (leftPrim.Kind == PrimitiveKind.Integer && rightPrim.Kind == PrimitiveKind.Integer)
             {
-                var resultType = new PrimitiveType(PrimitiveKind.Integer);
-                binOp.Type = resultType;
-                return resultType;
+                binOp.Type = IntegerType;
+                return IntegerType;
             }
-
-            if ((leftPrim.Kind == PrimitiveKind.Integer || leftPrim.Kind == PrimitiveKind.Real) &&
-                (rightPrim.Kind == PrimitiveKind.Integer || rightPrim.Kind == PrimitiveKind.Real))
+            if (IsNumeric(leftPrim) && IsNumeric(rightPrim))
             {
-                var resultType = new PrimitiveType(PrimitiveKind.Real);
-                binOp.Type = resultType;
-                return resultType;
+                binOp.Type = RealType;
+                return RealType;
             }
         }
 
         var commonType = PrimitiveType.GetCommonType(leftType, rightType);
-        if (commonType != null && commonType is PrimitiveType commonPrim)
+        if (commonType is PrimitiveType commonPrim && IsNumeric(commonPrim))
         {
-            if (commonPrim.Kind == PrimitiveKind.Integer || commonPrim.Kind == PrimitiveKind.Real)
-            {
-                binOp.Type = commonPrim;
-                return commonPrim;
-            }
+            binOp.Type = commonPrim;
+            return commonPrim;
         }
 
-        AddError(binOp.Line, binOp.Column,
-            $"Invalid operands for arithmetic operation '{binOp.Operator}': {leftType.Name} and {rightType.Name}");
+        AddError(binOp.Line, binOp.Column, $"Invalid operands for '{binOp.Operator}': {leftType.Name} and {rightType.Name}");
         return null;
     }
 
     private Type? CheckComparisonOperation(BinaryOperationNode binOp, Type leftType, Type rightType)
     {
-        if (leftType.IsCompatibleWith(rightType) || rightType.IsCompatibleWith(leftType))
+        if (AreCompatible(leftType, rightType) || PrimitiveType.GetCommonType(leftType, rightType) != null)
         {
-            var resultType = new PrimitiveType(PrimitiveKind.Boolean);
-            binOp.Type = resultType;
-            return resultType;
+            binOp.Type = BooleanType;
+            return BooleanType;
         }
-
-        var commonType = PrimitiveType.GetCommonType(leftType, rightType);
-        if (commonType != null)
-        {
-            var resultType = new PrimitiveType(PrimitiveKind.Boolean);
-            binOp.Type = resultType;
-            return resultType;
-        }
-
-        AddError(binOp.Line, binOp.Column,
-            $"Type mismatch in comparison '{binOp.Operator}': {leftType.Name} and {rightType.Name} are not compatible");
+        AddError(binOp.Line, binOp.Column, $"Type mismatch in '{binOp.Operator}': {leftType.Name} and {rightType.Name} are not compatible");
         return null;
     }
 
     private Type? CheckRelationalOperation(BinaryOperationNode binOp, Type leftType, Type rightType)
     {
-        if (leftType is PrimitiveType leftPrim && rightType is PrimitiveType rightPrim)
+        if (leftType is PrimitiveType leftPrim && rightType is PrimitiveType rightPrim && IsNumeric(leftPrim) && IsNumeric(rightPrim))
         {
-            if ((leftPrim.Kind == PrimitiveKind.Integer || leftPrim.Kind == PrimitiveKind.Real) &&
-                (rightPrim.Kind == PrimitiveKind.Integer || rightPrim.Kind == PrimitiveKind.Real))
-            {
-                var resultType = new PrimitiveType(PrimitiveKind.Boolean);
-                binOp.Type = resultType;
-                return resultType;
-            }
+            binOp.Type = BooleanType;
+            return BooleanType;
         }
 
         var commonType = PrimitiveType.GetCommonType(leftType, rightType);
-        if (commonType != null && commonType is PrimitiveType commonPrim)
+        if (commonType is PrimitiveType commonPrim && IsNumeric(commonPrim))
         {
-            if (commonPrim.Kind == PrimitiveKind.Integer || commonPrim.Kind == PrimitiveKind.Real)
-            {
-                var resultType = new PrimitiveType(PrimitiveKind.Boolean);
-                binOp.Type = resultType;
-                return resultType;
-            }
+            binOp.Type = BooleanType;
+            return BooleanType;
         }
 
-        AddError(binOp.Line, binOp.Column,
-            $"Invalid operands for relational operation '{binOp.Operator}': {leftType.Name} and {rightType.Name}");
+        AddError(binOp.Line, binOp.Column, $"Invalid operands for '{binOp.Operator}': {leftType.Name} and {rightType.Name}");
         return null;
     }
 
     private Type? CheckLogicalOperation(BinaryOperationNode binOp, Type leftType, Type rightType)
     {
-        var boolType = new PrimitiveType(PrimitiveKind.Boolean);
-        if ((leftType.IsCompatibleWith(boolType) || boolType.IsCompatibleWith(leftType)) &&
-            (rightType.IsCompatibleWith(boolType) || boolType.IsCompatibleWith(rightType)))
+        if ((AreCompatible(leftType, BooleanType) && AreCompatible(rightType, BooleanType)) ||
+            (leftType is PrimitiveType leftPrim && rightType is PrimitiveType rightPrim &&
+             (leftPrim.Kind == PrimitiveKind.Boolean || leftPrim.Kind == PrimitiveKind.Integer) &&
+             (rightPrim.Kind == PrimitiveKind.Boolean || rightPrim.Kind == PrimitiveKind.Integer)))
         {
-            binOp.Type = boolType;
-            return boolType;
+            binOp.Type = BooleanType;
+            return BooleanType;
         }
 
-        var commonType = PrimitiveType.GetCommonType(leftType, rightType);
-        if (commonType != null)
-        {
-            if (leftType is PrimitiveType leftPrim &&
-                (leftPrim.Kind == PrimitiveKind.Boolean || leftPrim.Kind == PrimitiveKind.Integer))
-            {
-                if (rightType is PrimitiveType rightPrim &&
-                    (rightPrim.Kind == PrimitiveKind.Boolean || rightPrim.Kind == PrimitiveKind.Integer))
-                {
-                    binOp.Type = boolType;
-                    return boolType;
-                }
-            }
-        }
-
-        AddError(binOp.Line, binOp.Column,
-            $"Logical operation '{binOp.Operator}' requires boolean or integer operands, got {leftType.Name} and {rightType.Name}");
+        AddError(binOp.Line, binOp.Column, $"Logical operation '{binOp.Operator}' requires boolean or integer operands");
         return null;
     }
 
     private Type? CheckUnaryOperation(UnaryOperationNode unOp)
     {
         var operandType = DeriveType(unOp.Operand);
-        if (operandType == null)
-        {
-            return null;
-        }
+        if (operandType == null) return null;
 
         var resultType = unOp.Operator switch
         {
-            "-" => CheckUnaryMinus(unOp, operandType),
-            "not" => CheckUnaryNot(unOp, operandType),
+            "-" => operandType is PrimitiveType p && IsNumeric(p) ? operandType : null,
+            "not" => AreCompatible(operandType, BooleanType) || operandType is PrimitiveType { Kind: PrimitiveKind.Integer } 
+                ? BooleanType : null,
             _ => null
         };
 
-        if (resultType != null)
-        {
+        if (resultType == null)
+            AddError(unOp.Line, unOp.Column, $"Invalid unary operation '{unOp.Operator}'");
+        else
             unOp.Type = resultType;
-        }
-
         return resultType;
-    }
-
-    private Type? CheckUnaryMinus(UnaryOperationNode unOp, Type operandType)
-    {
-        if (operandType is PrimitiveType prim &&
-            (prim.Kind == PrimitiveKind.Integer || prim.Kind == PrimitiveKind.Real))
-        {
-            unOp.Type = operandType;
-            return operandType;
-        }
-
-        AddError(unOp.Line, unOp.Column,
-            $"Unary minus requires numeric operand, got {operandType.Name}");
-        return null;
-    }
-
-    private Type? CheckUnaryNot(UnaryOperationNode unOp, Type operandType)
-    {
-        var boolType = new PrimitiveType(PrimitiveKind.Boolean);
-        if (operandType.IsCompatibleWith(boolType) || boolType.IsCompatibleWith(operandType))
-        {
-            unOp.Type = boolType;
-            return boolType;
-        }
-
-        if (operandType is PrimitiveType prim && prim.Kind == PrimitiveKind.Integer)
-        {
-            unOp.Type = boolType;
-            return boolType;
-        }
-
-        AddError(unOp.Line, unOp.Column,
-            $"Unary 'not' requires boolean or integer operand, got {operandType.Name}");
-        return null;
     }
 
     private Type? CheckArrayAccess(ArrayAccessNode arrAccess)
@@ -1177,11 +953,10 @@ public class SemanticAnalyzer
             return null;
         }
 
-        var intType = new PrimitiveType(PrimitiveKind.Integer);
-        if (!indexType.IsCompatibleWith(intType) && !intType.IsCompatibleWith(indexType))
+        if (!AreCompatible(indexType, IntegerType))
         {
-            var commonType = PrimitiveType.GetCommonType(indexType, intType);
-            if (commonType == null || !(commonType is PrimitiveType commonPrim && commonPrim.Kind == PrimitiveKind.Integer))
+            var commonType = PrimitiveType.GetCommonType(indexType, IntegerType);
+            if (commonType is not PrimitiveType { Kind: PrimitiveKind.Integer })
             {
                 AddError(arrAccess.Index.Line, arrAccess.Index.Column,
                     $"Array index must be integer, got {indexType.Name}");
@@ -1295,50 +1070,11 @@ public class SemanticAnalyzer
     {
         var argType = DeriveType(argument);
         var paramType = ResolveTypeNode(parameter.Type);
-
-        if (argType == null || paramType == null)
-        {
-            return;
-        }
-
-        if (argType.IsCompatibleWith(paramType))
-        {
-            return;
-        }
-
-        if (CanConvertArgumentToParameterType(argType, paramType))
-        {
-            return;
-        }
-
-        AddError(argument.Line, argument.Column,
-            $"Argument {argumentIndex} type mismatch in call to '{routineName}': expected {paramType.Name}, got {argType.Name}");
+        if (argType != null && paramType != null && !argType.IsCompatibleWith(paramType))
+            AddError(argument.Line, argument.Column,
+                $"Argument {argumentIndex} type mismatch in call to '{routineName}': expected {paramType.Name}, got {argType.Name}");
     }
 
-    private bool CanConvertArgumentToParameterType(Type argType, Type paramType)
-    {
-        if (argType is PrimitiveType argPrim && paramType is PrimitiveType paramPrim)
-        {
-            if (argPrim.Kind == PrimitiveKind.Integer && paramPrim.Kind == PrimitiveKind.Real)
-            {
-                return true;
-            }
-
-            if ((argPrim.Kind == PrimitiveKind.Integer && paramPrim.Kind == PrimitiveKind.Boolean) ||
-                (argPrim.Kind == PrimitiveKind.Boolean && paramPrim.Kind == PrimitiveKind.Integer))
-            {
-                return true;
-            }
-        }
-
-        var commonType = PrimitiveType.GetCommonType(argType, paramType);
-        if (commonType != null && commonType.Equals(paramType))
-        {
-            return true;
-        }
-
-        return false;
-    }
 
     private Type? CheckRange(RangeNode range)
     {
@@ -1350,26 +1086,13 @@ public class SemanticAnalyzer
             return null;
         }
 
-        var intType = new PrimitiveType(PrimitiveKind.Integer);
-        if ((!startType.IsCompatibleWith(intType) && !intType.IsCompatibleWith(startType)) ||
-            (!endType.IsCompatibleWith(intType) && !intType.IsCompatibleWith(endType)))
+        if (!AreCompatible(startType, IntegerType) || !AreCompatible(endType, IntegerType))
         {
-            var startCommon = PrimitiveType.GetCommonType(startType, intType);
-            var endCommon = PrimitiveType.GetCommonType(endType, intType);
-            if (startCommon == null || endCommon == null ||
-                !(startCommon is PrimitiveType startPrim && startPrim.Kind == PrimitiveKind.Integer) ||
-                !(endCommon is PrimitiveType endPrim && endPrim.Kind == PrimitiveKind.Integer))
-            {
-                AddError(range.Line, range.Column, "Range bounds must be integer");
-                return null;
-            }
+            AddError(range.Line, range.Column, "Range bounds must be integer");
+            return null;
         }
 
-        var fields = new Dictionary<string, Type>
-        {
-            ["start"] = intType,
-            ["end"] = intType
-        };
+        var fields = new Dictionary<string, Type> { ["start"] = IntegerType, ["end"] = IntegerType };
         var resultType = new RecordType(fields);
         range.Type = resultType;
         return resultType;
@@ -1391,15 +1114,9 @@ public class SemanticAnalyzer
         for (int i = 1; i < arrInit.Elements.Count; i++)
         {
             var elemType = DeriveType(arrInit.Elements[i]);
-            if (elemType != null && !elemType.IsCompatibleWith(elementType) && !elementType.IsCompatibleWith(elemType))
-            {
-                var commonType = PrimitiveType.GetCommonType(elemType, elementType);
-                if (commonType == null)
-                {
-                    AddError(arrInit.Elements[i].Line, arrInit.Elements[i].Column,
-                        $"Array element type mismatch: expected {elementType.Name}, got {elemType.Name}");
-                }
-            }
+            if (elemType != null && !AreCompatible(elemType, elementType))
+                AddError(arrInit.Elements[i].Line, arrInit.Elements[i].Column,
+                    $"Array element type mismatch: expected {elementType.Name}, got {elemType.Name}");
         }
 
         var resultType = new ArrayType(elementType, arrInit.Elements.Count);
@@ -1407,77 +1124,18 @@ public class SemanticAnalyzer
         return resultType;
     }
 
-    private bool IsModifiable(ExpressionNode expression)
+    private bool IsModifiable(ExpressionNode expression) => expression switch
     {
-        return expression switch
-        {
-            IdentifierNode id => IsModifiableIdentifier(id),
-            ArrayAccessNode arrAccess => IsModifiableArrayAccess(arrAccess),
-            RecordAccessNode recAccess => IsModifiableRecordAccess(recAccess),
-            RoutineCallNode => false,
-            _ => false
-        };
-    }
+        IdentifierNode id => IsVariableOrParameter(id.Name),
+        ArrayAccessNode arrAccess => IsModifiable(arrAccess.Array),
+        RecordAccessNode recAccess => IsModifiable(recAccess.Record),
+        _ => false
+    };
 
-    private bool IsModifiableIdentifier(IdentifierNode id)
+    private bool IsVariableOrParameter(string name)
     {
-        var symbol = _symbolTable.Lookup(id.Name);
-        if (symbol == null)
-        {
-            return false;
-        }
-
-        return symbol.Kind == SymbolKind.Variable || symbol.Kind == SymbolKind.Parameter;
-    }
-
-    private bool IsModifiableArrayAccess(ArrayAccessNode arrAccess)
-    {
-        if (arrAccess.Array is IdentifierNode id)
-        {
-            var symbol = _symbolTable.Lookup(id.Name);
-            if (symbol == null)
-            {
-                return false;
-            }
-            return symbol.Kind == SymbolKind.Variable || symbol.Kind == SymbolKind.Parameter;
-        }
-
-        if (arrAccess.Array is ArrayAccessNode nestedArr)
-        {
-            return IsModifiableArrayAccess(nestedArr);
-        }
-
-        if (arrAccess.Array is RecordAccessNode recAccess)
-        {
-            return IsModifiableRecordAccess(recAccess);
-        }
-
-        return false;
-    }
-
-    private bool IsModifiableRecordAccess(RecordAccessNode recAccess)
-    {
-        if (recAccess.Record is IdentifierNode id)
-        {
-            var symbol = _symbolTable.Lookup(id.Name);
-            if (symbol == null)
-            {
-                return false;
-            }
-            return symbol.Kind == SymbolKind.Variable || symbol.Kind == SymbolKind.Parameter;
-        }
-
-        if (recAccess.Record is ArrayAccessNode arrAccess)
-        {
-            return IsModifiableArrayAccess(arrAccess);
-        }
-
-        if (recAccess.Record is RecordAccessNode nestedRec)
-        {
-            return IsModifiableRecordAccess(nestedRec);
-        }
-
-        return false;
+        var symbol = _symbolTable.Lookup(name);
+        return symbol?.Kind == SymbolKind.Variable || symbol?.Kind == SymbolKind.Parameter;
     }
 
     private long? EvaluateConstantInteger(ExpressionNode expression)
@@ -1545,63 +1203,25 @@ public class SemanticAnalyzer
         }
     }
 
-    private bool AllPathsReturn(List<StatementNode> statements)
+    private bool AllPathsReturn(List<StatementNode> statements, int startIndex = 0)
     {
-        if (statements.Count == 0)
+        if (statements.Count == 0) return false;
+
+        for (int i = startIndex; i < statements.Count; i++)
         {
-            return false;
+            if (statements[i] is ReturnStatementNode) return true;
+
+            if (statements[i] is IfStatementNode ifStmt)
+            {
+                var thenReturns = AllPathsReturn(ifStmt.ThenBody);
+                if (ifStmt.ElseBody.Count == 0)
+                    return thenReturns && AllPathsReturn(statements, i + 1);
+                return thenReturns && AllPathsReturn(ifStmt.ElseBody);
+            }
+
+            if (statements[i] is WhileLoopNode or ForLoopNode && i == statements.Count - 1)
+                return false;
         }
-
-        for (int i = 0; i < statements.Count; i++)
-        {
-            var statement = statements[i];
-            
-            if (statement is ReturnStatementNode)
-            {
-                return true;
-            }
-
-            if (statement is IfStatementNode ifStmt)
-            {
-                bool thenReturns = AllPathsReturn(ifStmt.ThenBody);
-                
-                if (ifStmt.ElseBody.Count > 0)
-                {
-                    bool elseReturns = AllPathsReturn(ifStmt.ElseBody);
-                    if (thenReturns && elseReturns)
-                    {
-                        return true;
-                    }
-                    if (!thenReturns || !elseReturns)
-                    {
-                        return false;
-                    }
-                }
-                else
-                {
-                    if (!thenReturns)
-                    {
-                        return false;
-                    }
-                    if (i == statements.Count - 1)
-                    {
-                        return false;
-                    }
-                    var remainingStatements = statements.Skip(i + 1).ToList();
-                    return AllPathsReturn(remainingStatements);
-                }
-            }
-
-            if (statement is WhileLoopNode || statement is ForLoopNode)
-            {
-                if (i == statements.Count - 1)
-                {
-                    return false;
-                }
-                continue;
-            }
-        }
-
         return false;
     }
 
