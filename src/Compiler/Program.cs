@@ -133,19 +133,24 @@ namespace Compiler
             }
 
             lexer = new LexerClass(input);
-            DebugOutput.PrintLexicalAnalysis(lexer);
-            Console.WriteLine();
+            if (options.DebugMode)
+            {
+                DebugOutput.PrintLexicalAnalysis(lexer);
+                Console.WriteLine();
+            }
 
             lexer = new LexerClass(input);
             var parser = new ParserFacade(lexer);
             ProgramNode ast = parser.Parse();
 
-            Console.WriteLine("AST after parsing:");
-            DebugOutput.PrintDetailedAst(ast);
-            Console.WriteLine();
+            if (options.DebugMode)
+            {
+                Console.WriteLine("AST after parsing:");
+                DebugOutput.PrintDetailedAst(ast);
+                Console.WriteLine();
+            }
 
             var semanticAnalyzer = new SemanticAnalyzer();
-            Console.WriteLine("Semantic analysis...");
             semanticAnalyzer.Analyze(ast);
             if (semanticAnalyzer.HasErrors)
             {
@@ -159,13 +164,11 @@ namespace Compiler
             var constantFolder = new ConstantFolder();
             constantFolder.Optimize(ast);
 
-            Console.WriteLine("Optimized AST:");
-            DebugOutput.PrintDetailedAst(ast);
-            Console.WriteLine();
-
             if (options.DebugMode)
-            {
-                DebugOutput.GenerateAndPrintDebugInfo(input, options.FilePath, ast, printConsole: false);
+            {                
+                Console.WriteLine("Optimized AST:");
+                DebugOutput.PrintDetailedAst(ast);
+                Console.WriteLine();
             }
             else
             {
