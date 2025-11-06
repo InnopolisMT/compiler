@@ -33,10 +33,7 @@ public class SemanticAnalyzer
     public string FormatErrors(string? fileName = null)
     {
         var result = new System.Text.StringBuilder();
-        foreach (var error in _errors)
-        {
-            result.AppendLine(error.Format(fileName));
-        }
+        foreach (var error in _errors) result.AppendLine(error.Format(fileName));
         return result.ToString();
     }
 
@@ -123,28 +120,11 @@ public class SemanticAnalyzer
             }
         }
 
-        Type? forwardReturnType = null;
-        if (forward.ReturnType != null)
-        {
-            forwardReturnType = ResolveTypeNode(forward.ReturnType);
-        }
+        var forwardReturnType = forward.ReturnType != null ? ResolveTypeNode(forward.ReturnType) : null;
+        var fullReturnType = full.ReturnType != null ? ResolveTypeNode(full.ReturnType) : null;
 
-        Type? fullReturnType = null;
-        if (full.ReturnType != null)
-        {
-            fullReturnType = ResolveTypeNode(full.ReturnType);
-        }
-
-        if (forwardReturnType == null && fullReturnType == null)
-        {
-            return true;
-        }
-
-        if (forwardReturnType == null || fullReturnType == null)
-        {
-            return false;
-        }
-
+        if (forwardReturnType == null && fullReturnType == null) return true;
+        if (forwardReturnType == null || fullReturnType == null) return false;
         return forwardReturnType.Equals(fullReturnType);
     }
 
@@ -180,13 +160,7 @@ public class SemanticAnalyzer
             Scope = _symbolTable.CurrentScope
         };
 
-        symbol.CodeGenInfo!.IsGlobal = _symbolTable.CurrentLevel == 0;
-        symbol.CodeGenInfo!.IsLocal = _symbolTable.CurrentLevel > 0;
-
-        if (!_symbolTable.Enter(typeDecl.Name, symbol))
-        {
-            AddError(typeDecl.Line, typeDecl.Column, $"Failed to define type '{typeDecl.Name}'");
-        }
+        _symbolTable.Enter(typeDecl.Name, symbol);
     }
 
     private void ProcessRoutineDeclaration(RoutineDeclarationNode routineDecl)
@@ -233,15 +207,8 @@ public class SemanticAnalyzer
             }
         }
 
-        Type? returnType = null;
-        if (routineDecl.ReturnType != null)
-        {
-            returnType = ResolveTypeNode(routineDecl.ReturnType);
-            if (returnType == null)
-            {
-                return;
-            }
-        }
+        var returnType = routineDecl.ReturnType != null ? ResolveTypeNode(routineDecl.ReturnType) : null;
+        if (routineDecl.ReturnType != null && returnType == null) return;
 
         var symbol = new Symbol(routineDecl.Name, SymbolKind.Routine, returnType)
         {
@@ -251,52 +218,13 @@ public class SemanticAnalyzer
         symbol.Attributes["Parameters"] = routineDecl.Parameters;
         symbol.Attributes["ReturnType"] = routineDecl.ReturnType;
 
-        symbol.CodeGenInfo!.IsGlobal = _symbolTable.CurrentLevel == 0;
-        symbol.CodeGenInfo!.IsLocal = _symbolTable.CurrentLevel > 0;
-
-        if (!_symbolTable.Enter(routineDecl.Name, symbol))
-        {
-            AddError(routineDecl.Line, routineDecl.Column, $"Failed to define routine '{routineDecl.Name}'");
-            return;
-        }
+        if (!_symbolTable.Enter(routineDecl.Name, symbol)) return;
 
         if (isForwardDecl)
         {
             _forwardDeclarations[routineDecl.Name] = routineDecl;
         }
     }
-
-    private void ProcessParameter(ParameterNode parameter, int parameterIndex)
-    {
-        AnnotateScope(parameter);
-
-        if (_symbolTable.IsDefinedLocally(parameter.Name))
-        {
-            AddError(parameter.Line, parameter.Column, $"Parameter '{parameter.Name}' is already defined");
-            return;
-        }
-
-        var type = ResolveTypeNode(parameter.Type);
-        if (type == null)
-        {
-            return;
-        }
-
-        var symbol = new Symbol(parameter.Name, SymbolKind.Parameter, type)
-        {
-            DeclarationNode = parameter,
-            Scope = _symbolTable.CurrentScope
-        };
-
-        symbol.CodeGenInfo!.IsParameter = true;
-        symbol.CodeGenInfo!.ParameterIndex = parameterIndex;
-
-        if (!_symbolTable.Enter(parameter.Name, symbol))
-        {
-            AddError(parameter.Line, parameter.Column, $"Failed to define parameter '{parameter.Name}'");
-        }
-    }
-
 
     private Type? ResolveTypeNode(TypeNode typeNode)
     {
@@ -346,14 +274,8 @@ public class SemanticAnalyzer
         var elementType = ResolveTypeNode(arr.ElementType);
         if (elementType == null)
         {
-            var typeName = arr.ElementType switch
-            {
-                PrimitiveTypeNode p => p.TypeName,
-                UserTypeNode u => u.TypeName,
-                _ => "unknown"
-            };
             AddError(arr.ElementType.Line, arr.ElementType.Column,
-                $"Unknown element type '{typeName}' in array declaration");
+                $"Unknown element type '{GetTypeName(arr.ElementType)}' in array declaration");
             return null;
         }
 
@@ -375,6 +297,13 @@ public class SemanticAnalyzer
         return new ArrayType(elementType, (int)size.Value);
     }
 
+    private static string GetTypeName(TypeNode typeNode) => typeNode switch
+    {
+        PrimitiveTypeNode p => p.TypeName,
+        UserTypeNode u => u.TypeName,
+        _ => "unknown"
+    };
+
     private Type? ResolveRecordType(RecordTypeNode rec)
     {
         var fields = new Dictionary<string, Type>();
@@ -390,14 +319,8 @@ public class SemanticAnalyzer
             var fieldType = ResolveTypeNode(field.Type);
             if (fieldType == null)
             {
-                var typeName = field.Type switch
-                {
-                    PrimitiveTypeNode p => p.TypeName,
-                    UserTypeNode u => u.TypeName,
-                    _ => "unknown"
-                };
                 AddError(field.Type.Line, field.Type.Column,
-                    $"Unknown field type '{typeName}' in record declaration");
+                    $"Unknown field type '{GetTypeName(field.Type)}' in record declaration");
                 continue;
             }
 
@@ -417,35 +340,15 @@ public class SemanticAnalyzer
         {
             CheckDeclaration(declaration);
         }
-
-        ComputeGlobalVariableAddresses(program);
-    }
-
-    private void ComputeGlobalVariableAddresses(ProgramNode program)
-    {
-        int globalAddress = 0;
-        foreach (var declaration in program.Declarations)
-        {
-            if (declaration is VariableDeclarationNode varDecl)
-            {
-                var symbol = _symbolTable.LookupLocal(varDecl.Name);
-                if (symbol != null && symbol.CodeGenInfo != null && symbol.CodeGenInfo.IsGlobal)
-                {
-                    symbol.CodeGenInfo.Address = globalAddress;
-                    var type = ResolveTypeNode(varDecl.Type);
-                    if (type != null)
-                    {
-                        globalAddress += ComputeTypeSize(type);
-                    }
-                }
-            }
-        }
     }
 
     private void AnnotateScope(AstNode node)
     {
-        node.Scope = _symbolTable.CurrentScope;
-        node.ScopeLevel = _symbolTable.CurrentLevel;
+        if (node.Scope != _symbolTable.CurrentScope || node.ScopeLevel != _symbolTable.CurrentLevel)
+        {
+            node.Scope = _symbolTable.CurrentScope;
+            node.ScopeLevel = _symbolTable.CurrentLevel;
+        }
     }
 
     private void CheckDeclaration(DeclarationNode declaration)
@@ -517,16 +420,7 @@ public class SemanticAnalyzer
             Scope = _symbolTable.CurrentScope
         };
 
-        symbol.CodeGenInfo!.IsGlobal = _symbolTable.CurrentLevel == 0;
-        symbol.CodeGenInfo!.IsLocal = _symbolTable.CurrentLevel > 0;
-
-        if (!_symbolTable.Enter(varDecl.Name, symbol))
-        {
-            AddError(varDecl.Line, varDecl.Column, $"Failed to define variable '{varDecl.Name}'");
-            return;
-        }
-
-        varDecl.CodeGenInfo = symbol.CodeGenInfo;
+        if (!_symbolTable.Enter(varDecl.Name, symbol)) return;
     }
 
     private void CheckRoutineDeclaration(RoutineDeclarationNode routineDecl)
@@ -536,7 +430,6 @@ public class SemanticAnalyzer
         _currentRoutine = routineDecl;
         _symbolTable.PushScope(routineDecl.Name);
 
-        int parameterOffset = 0;
         for (int i = 0; i < routineDecl.Parameters.Count; i++)
         {
             var parameter = routineDecl.Parameters[i];
@@ -550,10 +443,6 @@ public class SemanticAnalyzer
                     DeclarationNode = parameter,
                     Scope = _symbolTable.CurrentScope
                 };
-                paramSymbol.CodeGenInfo!.IsParameter = true;
-                paramSymbol.CodeGenInfo!.ParameterIndex = i;
-                paramSymbol.CodeGenInfo!.Offset = parameterOffset;
-                parameterOffset += ComputeTypeSize(type);
                 _symbolTable.Enter(parameter.Name, paramSymbol);
             }
         }
@@ -561,7 +450,6 @@ public class SemanticAnalyzer
         if (routineDecl.Body != null)
         {
             CheckBody(routineDecl.Body);
-            ComputeLocalVariableOffsets(routineDecl.Body);
             
             if (routineDecl.ReturnType != null)
             {
@@ -573,44 +461,6 @@ public class SemanticAnalyzer
         _currentRoutine = null;
     }
 
-    private void ComputeLocalVariableOffsets(BodyNode body)
-    {
-        int localOffset = 0;
-        foreach (var declaration in body.Declarations)
-        {
-            if (declaration is VariableDeclarationNode varDecl)
-            {
-                var symbol = _symbolTable.LookupLocal(varDecl.Name);
-                if (symbol != null && symbol.CodeGenInfo != null)
-                {
-                    symbol.CodeGenInfo.Offset = localOffset;
-                    symbol.CodeGenInfo.FrameOffset = localOffset;
-                    var type = ResolveTypeNode(varDecl.Type);
-                    if (type != null)
-                    {
-                        localOffset += ComputeTypeSize(type);
-                    }
-                }
-            }
-        }
-    }
-
-    private int ComputeTypeSize(Type type)
-    {
-        return type switch
-        {
-            PrimitiveType prim => prim.Kind switch
-            {
-                PrimitiveKind.Integer => 4,
-                PrimitiveKind.Real => 8,
-                PrimitiveKind.Boolean => 1,
-                _ => 4
-            },
-            ArrayType arr => arr.Size * ComputeTypeSize(arr.ElementType),
-            RecordType rec => rec.Fields.Values.Sum(fieldType => ComputeTypeSize(fieldType)),
-            _ => 4
-        };
-    }
 
     private void CheckBody(BodyNode body)
     {
@@ -651,10 +501,6 @@ public class SemanticAnalyzer
 
             case ReturnStatementNode returnStmt:
                 CheckReturnStatement(returnStmt);
-                break;
-
-            case PrintStatementNode printStmt:
-                CheckPrintStatement(printStmt);
                 break;
         }
     }
@@ -717,7 +563,6 @@ public class SemanticAnalyzer
             DeclarationNode = forLoop,
             Scope = _symbolTable.CurrentScope
         };
-        loopVarSymbol.CodeGenInfo!.IsLocal = true;
         _symbolTable.Enter(forLoop.Variable, loopVarSymbol);
 
         foreach (var stmt in forLoop.Body)
@@ -741,14 +586,14 @@ public class SemanticAnalyzer
 
         if (hasValue != expectsValue)
         {
-            if (expectsValue)
-                AddError(returnStmt.Line, returnStmt.Column, $"Routine '{_currentRoutine.Name}' expects a return value, but none provided");
-            else
-                AddError(returnStmt.Line, returnStmt.Column, $"Routine '{_currentRoutine.Name}' does not return a value, but return statement provides one");
+            AddError(returnStmt.Line, returnStmt.Column,
+                expectsValue
+                    ? $"Routine '{_currentRoutine.Name}' expects a return value, but none provided"
+                    : $"Routine '{_currentRoutine.Name}' does not return a value, but return statement provides one");
             return;
         }
 
-        if (hasValue && expectsValue)
+        if (hasValue)
         {
             var returnType = DeriveType(returnStmt.Value!);
             var expectedType = ResolveTypeNode(_currentRoutine.ReturnType!);
@@ -756,11 +601,6 @@ public class SemanticAnalyzer
                 AddError(returnStmt.Value!.Line, returnStmt.Value!.Column,
                     $"Return type mismatch in routine '{_currentRoutine.Name}': expected {expectedType.Name}, got {returnType.Name}");
         }
-    }
-
-    private void CheckPrintStatement(PrintStatementNode printStmt)
-    {
-        DeriveType(printStmt.Expression);
     }
 
     public Type? DeriveType(ExpressionNode expression)
@@ -807,7 +647,6 @@ public class SemanticAnalyzer
 
         id.Symbol = symbol;
         id.Type = symbol.Type;
-        id.CodeGenInfo = symbol.CodeGenInfo;
         return symbol.Type;
     }
 
@@ -1100,28 +939,20 @@ public class SemanticAnalyzer
 
     private Type? CheckArrayInitializer(ArrayInitializerNode arrInit)
     {
-        if (arrInit.Elements.Count == 0)
-        {
-            return null;
-        }
+        if (arrInit.Elements.Count == 0) return null;
 
         var elementType = DeriveType(arrInit.Elements[0]);
-        if (elementType == null)
+        if (elementType == null) return null;
+
+        foreach (var elem in arrInit.Elements.Skip(1))
         {
-            return null;
+            var elemType = DeriveType(elem);
+            if (elemType != null && !elemType.IsCompatibleWith(elementType))
+                AddError(elem.Line, elem.Column, $"Array element type mismatch: expected {elementType.Name}, got {elemType.Name}");
         }
 
-        for (int i = 1; i < arrInit.Elements.Count; i++)
-        {
-            var elemType = DeriveType(arrInit.Elements[i]);
-            if (elemType != null && !AreCompatible(elemType, elementType))
-                AddError(arrInit.Elements[i].Line, arrInit.Elements[i].Column,
-                    $"Array element type mismatch: expected {elementType.Name}, got {elemType.Name}");
-        }
-
-        var resultType = new ArrayType(elementType, arrInit.Elements.Count);
-        arrInit.Type = resultType;
-        return resultType;
+        arrInit.Type = new ArrayType(elementType, arrInit.Elements.Count);
+        return arrInit.Type;
     }
 
     private bool IsModifiable(ExpressionNode expression) => expression switch
@@ -1188,16 +1019,11 @@ public class SemanticAnalyzer
     {
         if (!AllPathsReturn(body.Statements))
         {
-            int line = body.Line;
-            int column = body.Column;
-            
-            if (body.Statements.Count > 0)
-            {
-                var lastStatement = body.Statements[body.Statements.Count - 1];
-                line = lastStatement.Line;
-                column = lastStatement.Column;
-            }
-            
+            var lastStatement = body.Statements.Count > 0 ? body.Statements[^1] : null;
+            var (line, column) = lastStatement != null
+                ? (lastStatement.Line, lastStatement.Column)
+                : (body.Line, body.Column);
+
             AddError(line, column,
                 $"Not all execution paths in routine '{routineName}' return a value");
         }

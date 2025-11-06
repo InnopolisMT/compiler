@@ -17,13 +17,14 @@ public static class TypeNodeFactory
 
     private static TypeNode CreateArrayTypeNode(ArrayType arrType, ExpressionNode? contextExpr, SymbolTable? symbolTable)
     {
-        int size = arrType.Size;
-        ExpressionNode sizeExpr = contextExpr is ArrayInitializerNode arrInit && arrInit.Elements.Count > 0
+        var sizeExpr = contextExpr is ArrayInitializerNode arrInit && arrInit.Elements.Count > 0
             ? new IntegerLiteralNode { Value = arrInit.Elements.Count }
-            : new IntegerLiteralNode { Value = size };
-
-        var elementTypeNode = CreateFromType(arrType.ElementType, null, symbolTable);
-        return new ArrayTypeNode { Size = sizeExpr, ElementType = elementTypeNode };
+            : new IntegerLiteralNode { Value = arrType.Size };
+        return new ArrayTypeNode
+        {
+            Size = sizeExpr,
+            ElementType = CreateFromType(arrType.ElementType, null, symbolTable)
+        };
     }
 
     private static TypeNode CreateRecordTypeNode(RecordType recType, SymbolTable? symbolTable)

@@ -7,7 +7,7 @@ An imperative programming language compiler developed as an educational project.
 - ✅ **Lexical Analysis** - Hand-written lexer for tokenization
 - ✅ **Syntax Analysis** - GPPG-based parser with custom lexer integration
 - ✅ **AST Generation** - Full Abstract Syntax Tree construction
-- 🔄 Semantic Analysis (TODO)
+- ✅ **Semantic Analysis** - Type checking and semantic validation
 - 🔄 Code Generation (TODO)
 
 ## Architecture
@@ -28,6 +28,27 @@ The compiler is structured in phases:
 
 3. **AST** (`src/Compiler/AST/`) - Abstract Syntax Tree
    - `AstNodes.cs` - Node definitions for all language constructs
+
+4. **Semantic Analyzer** (`src/Compiler/Semantic/`) - Semantic analysis and type checking
+   - `SemanticAnalyzer.cs` - Main semantic analyzer with two-pass analysis
+   - `SymbolTable.cs` - Symbol table with scope management
+   - `Type.cs` - Type system (primitive, array, record types)
+   - `Symbol.cs` - Symbol representation
+   - `Scope.cs` - Scope hierarchy management
+   - `SemanticError.cs` - Error reporting
+   - `TypeNodeFactory.cs` - Type node creation utilities
+
+   **Key Semantic Checks:**
+   - Type resolution and circular type detection
+   - Variable/parameter/routine declaration validation
+   - Type compatibility and assignment checking
+   - Forward declaration matching
+   - Array bounds checking (static and dynamic)
+   - Record field access validation
+   - Routine call argument matching
+   - Return statement validation and path analysis
+   - Expression type derivation
+   - Control flow condition checking
 
 ## Makefile Commands
 
@@ -202,10 +223,10 @@ For more details on the parser integration, see `docs/parser_integration_status.
 
 ## Testing
 
-The project includes comprehensive test suites for both lexer and parser:
+The project includes comprehensive test suites for lexer, parser, and semantic analyzer:
 
 ```bash
-# Run all tests (65 tests)
+# Run all tests
 make test
 
 # Run only lexer tests (23 tests)
@@ -213,6 +234,9 @@ dotnet test --filter "FullyQualifiedName~LexerTests"
 
 # Run only parser tests (42 tests)
 dotnet test --filter "FullyQualifiedName~ParserTests"
+
+# Run only semantic analyzer tests
+dotnet test --filter "FullyQualifiedName~SemanticAnalyzerTests"
 
 # Verbose output
 make test-verbose
@@ -237,14 +261,21 @@ make test-verbose
 - Complex programs
 - Error handling
 
-All tests read code from external files in `tests/test_files/` (23 files) and `tests/parser_test_files/` (28 files), making it easy to add new test cases.
+**Semantic Analyzer Tests:**
+- Forward declaration validation
+- Return type checking
+- Type compatibility
+- Control flow path analysis
+- Error detection and reporting
+
+All tests read code from external files in `tests/test_files/` (23 files), `tests/parser_test_files/` (28 files), and `tests/semantic_test_files/`, making it easy to add new test cases.
 
 ## To-do's
 
 - [x] Implement Lexer
 - [x] Implement Parser
 - [x] Add comprehensive tests
-- [ ] Implement Semantic Analyzer
+- [x] Implement Semantic Analyzer
 - [ ] Implement Code Generator
 - [ ] Add support for comments
 

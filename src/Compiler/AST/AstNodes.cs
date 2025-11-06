@@ -8,7 +8,6 @@ public abstract class AstNode
     public int Column { get; set; }
     public Compiler.Semantic.Scope? Scope { get; set; }
     public int ScopeLevel { get; set; }
-    public Compiler.Semantic.CodeGenInfo? CodeGenInfo { get; set; }
 }
 
 public class ProgramNode : AstNode

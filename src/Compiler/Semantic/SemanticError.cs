@@ -13,16 +13,8 @@ public class SemanticError
         Message = message;
     }
 
-    public string Format(string? fileName = null)
-    {
-        var location = fileName != null
-            ? $"{fileName}({Line},{Column})"
-            : $"({Line},{Column})";
-        return $"{location}: {Message}";
-    }
+    public string Format(string? fileName = null) =>
+        $"{(fileName != null ? $"{fileName}({Line},{Column})" : $"({Line},{Column})")}: {Message}";
 
-    public override string ToString()
-    {
-        return Format();
-    }
+    public override string ToString() => Format();
 }

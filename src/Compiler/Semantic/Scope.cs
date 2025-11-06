@@ -20,19 +20,12 @@ public class Scope
 
     public bool Define(string name, Symbol symbol)
     {
-        if (_symbols.ContainsKey(name))
-        {
-            return false;
-        }
-
+        if (_symbols.ContainsKey(name)) return false;
         _symbols[name] = symbol;
         return true;
     }
 
-    public Symbol? ResolveLocal(string name)
-    {
-        return _symbols.GetValueOrDefault(name);
-    }
+    public Symbol? ResolveLocal(string name) => _symbols.GetValueOrDefault(name);
 
     public Symbol? Resolve(string name)
     {
@@ -44,10 +37,7 @@ public class Scope
         return Parent?.Resolve(name);
     }
 
-    public bool IsDefined(string name)
-    {
-        return _symbols.ContainsKey(name);
-    }
+    public bool IsDefined(string name) => _symbols.ContainsKey(name);
 
     public Dictionary<string, Symbol> GetSymbols()
     {

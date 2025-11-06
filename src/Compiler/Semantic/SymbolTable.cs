@@ -53,30 +53,17 @@ public class SymbolTable
 
     public bool PopScope()
     {
-        if (_scopeStack.Count <= 1)
-        {
-            return false;
-        }
-
+        if (_scopeStack.Count <= 1) return false;
         _scopeStack.Pop();
         _currentScope = _scopeStack.Peek();
         return true;
     }
 
-    public bool IsDefinedLocally(string name)
-    {
-        return _currentScope.IsDefined(name);
-    }
+    public bool IsDefinedLocally(string name) => _currentScope.IsDefined(name);
 
-    public bool IsDefined(string name)
-    {
-        return Lookup(name) != null;
-    }
+    public bool IsDefined(string name) => Lookup(name) != null;
 
-    public Dictionary<string, Symbol> GetCurrentScopeSymbols()
-    {
-        return _currentScope.GetSymbols();
-    }
+    public Dictionary<string, Symbol> GetCurrentScopeSymbols() => _currentScope.GetSymbols();
 
     public void Reset()
     {
@@ -87,10 +74,8 @@ public class SymbolTable
         InitializeBuiltInTypes();
     }
 
-    public override string ToString()
-    {
-        return $"SymbolTable(CurrentScope={_currentScope}, Level={CurrentLevel}, ScopeCount={_scopeStack.Count})";
-    }
+    public override string ToString() =>
+        $"SymbolTable(CurrentScope={_currentScope}, Level={CurrentLevel}, ScopeCount={_scopeStack.Count})";
 
     public string DumpScopes()
     {

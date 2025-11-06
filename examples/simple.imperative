@@ -15,9 +15,11 @@ end
 routine test(x: integer, z: real): real
 is
     var zalupa is 4
-    z := 30.356
+    for i in 1..10 reverse loop
+        z := z + i
+    end
     if z > 30 then
-        return fuckyou
+        return z
     else
         return 0
     end

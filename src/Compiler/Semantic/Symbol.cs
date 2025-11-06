@@ -20,8 +20,6 @@ public class Symbol
 
     public object? DeclarationNode { get; set; }
 
-    public CodeGenInfo? CodeGenInfo { get; set; }
-
     public Scope? Scope { get; set; }
 
     public Symbol(string name, SymbolKind kind)
@@ -29,7 +27,6 @@ public class Symbol
         Name = name;
         Kind = kind;
         Attributes = new Dictionary<string, object?>();
-        CodeGenInfo = new CodeGenInfo();
     }
 
     public Symbol(string name, SymbolKind kind, Type? type) : this(name, kind)
