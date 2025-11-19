@@ -438,7 +438,7 @@ public class ExpressionCodeGen
         return type;
     }
 
-    private Semantic.Type? GetResolvedType(ExpressionNode expr)
+    public Semantic.Type? GetResolvedType(ExpressionNode expr)
     {
         if (expr is IdentifierNode ident)
         {

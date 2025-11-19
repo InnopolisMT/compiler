@@ -75,6 +75,15 @@ VariableDeclaration
                 InitialValue = (ExpressionNode)$6
             };
         }
+    | tkVar tkIdentifier tkColon Type
+        {
+            $$ = new VariableDeclarationNode
+            {
+                Name = (string)$2,
+                Type = (TypeNode)$4,
+                InitialValue = null  // ← БЕЗ инициализации
+            };
+        }
     | tkVar tkIdentifier tkIs Expression
         {
             $$ = new VariableDeclarationNode

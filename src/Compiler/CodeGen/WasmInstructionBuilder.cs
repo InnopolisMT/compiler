@@ -2,6 +2,7 @@ namespace Compiler.CodeGen;
 
 public static class WasmOpcode
 {
+    public const byte Unreachable = 0x00;
     public const byte End = 0x0B;
     public const byte Block = 0x02;
     public const byte Loop = 0x03;
@@ -115,6 +116,8 @@ public class WasmInstructionBuilder
     }
 
     public void Return() => _instructions.Add(WasmOpcode.Return);
+    
+    public void Unreachable() => _instructions.Add(WasmOpcode.Unreachable);
 
     public void Call(int functionIndex)
     {

@@ -127,6 +127,12 @@ public class StatementCodeGen
             }
             
             _builder.End();
+            
+            // If both branches end with return, mark code after as unreachable
+            if (EndsWithReturn(node.ThenBody) && EndsWithReturn(node.ElseBody))
+            {
+                _builder.Unreachable();
+            }
         }
         else
         {
@@ -139,6 +145,25 @@ public class StatementCodeGen
             
             _builder.End();
         }
+    }
+    
+    private bool EndsWithReturn(List<StatementNode> statements)
+    {
+        if (statements.Count == 0)
+            return false;
+            
+        var lastStmt = statements[statements.Count - 1];
+        
+        if (lastStmt is ReturnStatementNode)
+            return true;
+            
+        // Check if the last statement is an if-else where both branches return
+        if (lastStmt is IfStatementNode ifStmt && ifStmt.ElseBody.Count > 0)
+        {
+            return EndsWithReturn(ifStmt.ThenBody) && EndsWithReturn(ifStmt.ElseBody);
+        }
+        
+        return false;
     }
 
     private void GenerateWhileLoop(WhileLoopNode node)
@@ -384,6 +409,12 @@ public class StatementCodeGen
             {
                 exprType = returnType;
             }
+        }
+        
+        // If expression is a record access, resolve the field type correctly
+        if (node.Expression is RecordAccessNode recordAccess)
+        {
+            exprType = _exprGen.GetResolvedType(recordAccess);
         }
         
         string funcName;
