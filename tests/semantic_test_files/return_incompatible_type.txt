@@ -1,0 +1,6 @@
+routine test() : integer
+is
+    var x : real is 42.0
+    return x
+end
+

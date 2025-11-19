@@ -1,17 +1,50 @@
-var x : integer is 42
-var y : real is 3.14
-var flag : boolean is true
-routine main() 
+var x : integer is 0
+var y : integer is 0
+var flag : boolean is true and false
+var a : integer is 2
+var b : integer is 3
+
+type TMyArray is array[5] integer
+
+routine main()
 is
-    print x
-    print y
-    print flag
+    var arr : TMyArray is [1, 2, 3, 4, 5]
+
+    for i in 10..5 reverse loop
+        print i
+    end
+
+    if (true) then
+        print x
+        x := 5
+    else
+        print 0
+    end
+
+    if (3 < 5) then
+        print 1
+    else
+        print 0
+    end
+
+    if (true and false) then
+        y := 100
+    else
+        y := 200
+    end
+
+    while (false) loop
+        y := y + 1
+    end
+
+    y := 1 + 2 * 3
+
+    if (a + b = 5) then
+        print 42
+    end
+
+    if (flag) then
+        print 999
+    end
 end
 
-routine test(): integer
-is
-    var z : integer is 30
-    var result : integer
-    result := z * 24 + 39 - 98
-    return result
-end

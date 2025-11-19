@@ -1,4 +1,5 @@
 routine main()
+is
     x := 10 + 20 * 3
 end
 

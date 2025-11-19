@@ -1,0 +1,7 @@
+routine foo(x : integer) : integer
+
+routine foo(x : integer) : real
+is
+    return 42.0
+end
+

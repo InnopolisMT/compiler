@@ -1,0 +1,4 @@
+routine main()
+is
+    print arr[5]
+end

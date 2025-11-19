@@ -1,4 +1,5 @@
 routine main()
+is
     company.owner.addr.street := 123
     
     if (company.owner.addr.number = 456) then

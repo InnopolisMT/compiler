@@ -1,9 +1,13 @@
+using SemanticType = Compiler.Semantic.Type;
+
 namespace Compiler.AST;
 
 public abstract class AstNode
 {
     public int Line { get; set; }
     public int Column { get; set; }
+    public Compiler.Semantic.Scope? Scope { get; set; }
+    public int ScopeLevel { get; set; }
 }
 
 public class ProgramNode : AstNode
@@ -31,9 +35,14 @@ public class RoutineDeclarationNode : DeclarationNode
     public string Name { get; set; } = "";
     public List<ParameterNode> Parameters { get; set; } = new();
     public TypeNode? ReturnType { get; set; }
-    public BodyNode Body { get; set; } = null!;
+    public BodyNode? Body { get; set; }
 }
 public class ParameterNode : AstNode
+{
+    public string Name { get; set; } = "";
+    public TypeNode Type { get; set; } = null!;
+}
+public class FieldDeclarationNode : AstNode
 {
     public string Name { get; set; } = "";
     public TypeNode Type { get; set; } = null!;
@@ -63,7 +72,7 @@ public class ArrayTypeNode : TypeNode
 
 public class RecordTypeNode : TypeNode
 {
-    public List<VariableDeclarationNode> Fields { get; set; } = new();
+    public List<FieldDeclarationNode> Fields { get; set; } = new();
 }
 
 public abstract class StatementNode : AstNode
@@ -107,6 +116,7 @@ public class PrintStatementNode : StatementNode
 
 public abstract class ExpressionNode : AstNode
 {
+    public SemanticType? Type { get; set; }
 }
 
 public class BinaryOperationNode : ExpressionNode
@@ -140,6 +150,7 @@ public class BooleanLiteralNode : ExpressionNode
 public class IdentifierNode : ExpressionNode
 {
     public string Name { get; set; } = "";
+    public Compiler.Semantic.Symbol? Symbol { get; set; }
 }
 public class ArrayAccessNode : ExpressionNode
 {

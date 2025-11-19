@@ -1,0 +1,6 @@
+routine test() : integer
+is
+    var x : integer is 42
+    return x
+end
+

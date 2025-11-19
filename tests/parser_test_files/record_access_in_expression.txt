@@ -1,0 +1,6 @@
+routine main()
+is
+    for i in person.age .. 50 loop
+        print i
+    end
+end

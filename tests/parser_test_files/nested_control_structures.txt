@@ -1,0 +1,8 @@
+routine main()
+is
+    for i in 1 .. 10 loop
+        if (i = 5) then
+            print i
+        end
+    end
+end

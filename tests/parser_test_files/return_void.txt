@@ -1,0 +1,4 @@
+routine test()
+is
+    return
+end

@@ -75,12 +75,12 @@ VariableDeclaration
                 InitialValue = (ExpressionNode)$6
             };
         }
-    | tkVar tkIdentifier tkColon Type
+    | tkVar tkIdentifier tkIs Expression
         {
             $$ = new VariableDeclarationNode
             {
                 Name = (string)$2,
-                Type = (TypeNode)$4
+                InitialValue = (ExpressionNode)$4
             };
         }
     ;
@@ -134,9 +134,9 @@ ArrayType
     ;
 
 RecordType
-    : tkRecord VariableDeclarationList tkEnd
+    : tkRecord FieldDeclarationList tkEnd
         {
-            $$ = new RecordTypeNode { Fields = (List<VariableDeclarationNode>)$2 };
+            $$ = new RecordTypeNode { Fields = (List<FieldDeclarationNode>)$2 };
         }
     | tkRecord tkEnd
         {
@@ -144,15 +144,26 @@ RecordType
         }
     ;
 
-VariableDeclarationList
-    : VariableDeclaration
+FieldDeclaration
+    : tkVar tkIdentifier tkColon Type
         {
-            $$ = new List<VariableDeclarationNode> { (VariableDeclarationNode)$1 };
+            $$ = new FieldDeclarationNode
+            {
+                Name = (string)$2,
+                Type = (TypeNode)$4
+            };
         }
-    | VariableDeclarationList VariableDeclaration
+    ;
+
+FieldDeclarationList
+    : FieldDeclaration
         {
-            var list = (List<VariableDeclarationNode>)$1;
-            list.Add((VariableDeclarationNode)$2);
+            $$ = new List<FieldDeclarationNode> { (FieldDeclarationNode)$1 };
+        }
+    | FieldDeclarationList FieldDeclaration
+        {
+            var list = (List<FieldDeclarationNode>)$1;
+            list.Add((FieldDeclarationNode)$2);
             $$ = list;
         }
     ;
@@ -193,6 +204,38 @@ RoutineDeclaration
             {
                 Name = (string)$2,
                 Body = (BodyNode)$6
+            };
+        }
+    | tkRoutine tkIdentifier tkLeftParen ParameterList tkRightParen tkColon Type
+        {
+            $$ = new RoutineDeclarationNode
+            {
+                Name = (string)$2,
+                Parameters = (List<ParameterNode>)$4,
+                ReturnType = (TypeNode)$7
+            };
+        }
+    | tkRoutine tkIdentifier tkLeftParen ParameterList tkRightParen
+        {
+            $$ = new RoutineDeclarationNode
+            {
+                Name = (string)$2,
+                Parameters = (List<ParameterNode>)$4
+            };
+        }
+    | tkRoutine tkIdentifier tkLeftParen tkRightParen tkColon Type
+        {
+            $$ = new RoutineDeclarationNode
+            {
+                Name = (string)$2,
+                ReturnType = (TypeNode)$6
+            };
+        }
+    | tkRoutine tkIdentifier tkLeftParen tkRightParen
+        {
+            $$ = new RoutineDeclarationNode
+            {
+                Name = (string)$2
             };
         }
     ;
@@ -294,6 +337,23 @@ IfStatement
                 ElseBody = ((BodyNode)$8).Statements
             };
         }
+    | tkIf Expression tkThen Body tkEnd
+        {
+            $$ = new IfStatementNode
+            {
+                Condition = (ExpressionNode)$2,
+                ThenBody = ((BodyNode)$4).Statements
+            };
+        }
+    | tkIf Expression tkThen Body tkElse Body tkEnd
+        {
+            $$ = new IfStatementNode
+            {
+                Condition = (ExpressionNode)$2,
+                ThenBody = ((BodyNode)$4).Statements,
+                ElseBody = ((BodyNode)$6).Statements
+            };
+        }
     ;
 
 WhileLoop
@@ -303,6 +363,14 @@ WhileLoop
             {
                 Condition = (ExpressionNode)$3,
                 Body = ((BodyNode)$6).Statements
+            };
+        }
+    | tkWhile Expression tkLoop Body tkEnd
+        {
+            $$ = new WhileLoopNode
+            {
+                Condition = (ExpressionNode)$2,
+                Body = ((BodyNode)$4).Statements
             };
         }
     ;
@@ -317,12 +385,12 @@ ForLoop
                 Body = ((BodyNode)$6).Statements
             };
         }
-    | tkFor tkIdentifier tkIn tkReverse Range tkLoop Body tkEnd
+    | tkFor tkIdentifier tkIn Range tkReverse tkLoop Body tkEnd
         {
             $$ = new ForLoopNode
             {
                 Variable = (string)$2,
-                Range = (ExpressionNode)$5,
+                Range = (ExpressionNode)$4,
                 IsReverse = true,
                 Body = ((BodyNode)$7).Statements
             };

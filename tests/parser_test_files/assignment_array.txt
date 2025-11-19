@@ -1,4 +1,5 @@
 routine main()
+is
     arr[5] := 42
 end
 

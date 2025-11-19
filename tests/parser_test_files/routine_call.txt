@@ -1,7 +1,9 @@
 routine foo()
+is
     print 1
 end
 
 routine main()
+is
     print 2
 end

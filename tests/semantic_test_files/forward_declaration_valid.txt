@@ -1,0 +1,7 @@
+routine foo(x : integer) : integer
+
+routine foo(x : integer) : integer
+is
+    return x + 1
+end
+

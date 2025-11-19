@@ -326,7 +326,10 @@ namespace Compiler.TreeView
                         routineChildren.Add(ConvertTypeToTree(routineDecl.ReturnType));
                     }
 
-                    routineChildren.Add(ConvertBodyToTree(routineDecl.Body));
+                    if (routineDecl.Body != null)
+                    {
+                        routineChildren.Add(ConvertBodyToTree(routineDecl.Body));
+                    }
                     node["children"] = routineChildren;
                     break;
             }
@@ -393,12 +396,25 @@ namespace Compiler.TreeView
                     var fieldChildren = new List<object>();
                     for (int i = 0; i < rec.Fields.Count; i++)
                     {
-                        fieldChildren.Add(ConvertDeclarationToTree(rec.Fields[i], i));
+                        fieldChildren.Add(ConvertFieldDeclarationToTree(rec.Fields[i], i));
                     }
                     node["children"] = fieldChildren;
                     break;
             }
 
+            return node;
+        }
+
+        private Dictionary<string, object> ConvertFieldDeclarationToTree(FieldDeclarationNode fieldDecl, int index)
+        {
+            var node = new Dictionary<string, object>();
+            node["type"] = "FieldDeclarationNode";
+            node["displayName"] = $"Field[{index}]";
+            node["properties"] = new List<object>
+            {
+                new { name = "Name", value = $"\"{fieldDecl.Name}\"" }
+            };
+            node["children"] = new List<object> { ConvertTypeToTree(fieldDecl.Type) };
             return node;
         }
 

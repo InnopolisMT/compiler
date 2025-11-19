@@ -1,0 +1,3 @@
+routine empty()
+is
+end
