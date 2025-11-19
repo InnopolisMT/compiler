@@ -1,0 +1,42 @@
+var x : integer is 0
+var y : integer is 0
+
+type TMyArray is array[5] integer
+
+routine test(a : integer, b : integer): real
+is
+    print a
+    print b
+    return a / b
+end
+
+routine main()
+is
+    var arr : TMyArray is [1, 2, 3, 4, 5]
+    arr[3] := 15
+    for i in 1..5 loop
+        print arr[i]
+    end
+
+    if (true) then
+        print x
+        x := 5
+    else
+        print 5
+    end
+
+    if (3 < 5) then
+        print 1
+    else
+        print 0
+    end
+
+    if (true and false) then
+        y := 100
+    else
+        y := 200
+    end
+    print y
+    print test(100, y)
+end
+

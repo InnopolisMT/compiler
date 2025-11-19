@@ -2,7 +2,6 @@ using Xunit;
 using Compiler.Lexer;
 using Compiler.Parser;
 using Compiler.AST;
-using System.Linq;
 
 namespace Compiler.Tests
 {

@@ -3,6 +3,7 @@ using Compiler.Parser;
 using Compiler.AST;
 using Compiler.Optimization;
 using Compiler.Semantic;
+using Compiler.CodeGen;
 
 namespace Compiler
 {
@@ -58,9 +59,11 @@ namespace Compiler
             string filePath = "";
             bool lexerOnly = false;
             bool debugMode = false;
+            string? outputPath = null;
 
-            foreach (string arg in args)
+            for (int i = 0; i < args.Length; i++)
             {
+                string arg = args[i];
                 switch (arg)
                 {
                     case "--help":
@@ -72,6 +75,18 @@ namespace Compiler
                         break;
                     case "--debug":
                         debugMode = true;
+                        break;
+                    case "--output":
+                    case "-o":
+                        if (i + 1 < args.Length)
+                        {
+                            outputPath = args[++i];
+                        }
+                        else
+                        {
+                            Console.Error.WriteLine("Error: --output requires a path argument.");
+                            return null;
+                        }
                         break;
                     default:
                         if (string.IsNullOrEmpty(filePath))
@@ -89,7 +104,7 @@ namespace Compiler
                 return null;
             }
 
-            return new CompilerOptions(filePath, lexerOnly, debugMode);
+            return new CompilerOptions(filePath, lexerOnly, debugMode, outputPath);
         }
 
         private static bool ValidateFilePath(string filePath)
@@ -170,9 +185,33 @@ namespace Compiler
                 DebugOutput.PrintDetailedAst(ast);
                 Console.WriteLine();
             }
-            else
+
+            string outputPath = options.OutputPath ?? Path.ChangeExtension(options.FilePath, ".wasm");
+            
+            try
             {
-                Console.WriteLine("Compilation completed successfully.");
+                var codeGenerator = new WasmCodeGenerator();
+                codeGenerator.Generate(ast, outputPath);
+                
+                Console.WriteLine($"Compilation completed successfully!");
+                Console.WriteLine($"Output files:");
+                Console.WriteLine($"  WASM: {outputPath}");
+                
+                string baseName = Path.GetFileNameWithoutExtension(outputPath);
+                string directory = Path.GetDirectoryName(outputPath) ?? ".";
+                string testScript = Path.Combine(directory, $"{baseName}_test.js");
+                Console.WriteLine($"  Test: {testScript}");
+                Console.WriteLine();
+                Console.WriteLine($"Run with: node {testScript} [function_name] [args...]");
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Code generation failed: {ex.Message}");
+                if (options.DebugMode)
+                {
+                    Console.Error.WriteLine(ex.StackTrace);
+                }
+                Environment.Exit(1);
             }
         }
 
@@ -212,24 +251,30 @@ namespace Compiler
             Console.WriteLine("  Compiler --help");
             Console.WriteLine();
             Console.WriteLine("Arguments:");
-            Console.WriteLine("  file_path    Path to the source file to compile");
+            Console.WriteLine("  file_path              Path to the source file to compile");
             Console.WriteLine();
             Console.WriteLine("Options:");
-            Console.WriteLine("  --help, -h       Show this help message");
-            Console.WriteLine("  --lexer-only     Run only lexical analysis");
-            Console.WriteLine("  --debug          Show detailed output (tokens + AST)");
+            Console.WriteLine("  --help, -h             Show this help message");
+            Console.WriteLine("  --output, -o <path>    Specify output path for WASM file (default: input.wasm)");
+            Console.WriteLine("  --debug                Show detailed output (tokens + AST)");
+            Console.WriteLine("  --lexer-only           Run only lexical analysis (stop after lexer)");
             Console.WriteLine();
             Console.WriteLine("Examples:");
-            Console.WriteLine("  Compiler examples/test.imperative                    # Basic compilation");
+            Console.WriteLine("  Compiler examples/test.imperative                    # Full compilation to WASM");
+            Console.WriteLine("  Compiler examples/test.imperative -o out/prog.wasm   # Custom output path");
             Console.WriteLine("  Compiler examples/test.imperative --debug            # Detailed output");
             Console.WriteLine("  Compiler --lexer-only examples/test.imperative       # Lexical analysis only");
+            Console.WriteLine();
+            Console.WriteLine("Note: By default, the compiler performs full compilation including code generation.");
+            Console.WriteLine("      Use --lexer-only to stop at a specific stage.");
         }
     }
 
-    internal class CompilerOptions(string filePath, bool lexerOnly, bool debugMode)
+    internal class CompilerOptions(string filePath, bool lexerOnly, bool debugMode, string? outputPath)
     {
         public string FilePath { get; } = filePath;
         public bool LexerOnly { get; } = lexerOnly;
         public bool DebugMode { get; } = debugMode;
+        public string? OutputPath { get; } = outputPath;
     }
 }
