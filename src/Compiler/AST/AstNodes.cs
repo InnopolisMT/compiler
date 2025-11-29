@@ -114,6 +114,11 @@ public class PrintStatementNode : StatementNode
     public ExpressionNode Expression { get; set; } = null!;
 }
 
+public class ExpressionStatementNode : StatementNode
+{
+    public ExpressionNode Expression { get; set; } = null!;
+}
+
 public abstract class ExpressionNode : AstNode
 {
     public SemanticType? Type { get; set; }

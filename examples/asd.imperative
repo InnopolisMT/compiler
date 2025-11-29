@@ -28,6 +28,11 @@ is
     print 10 + 5
 end
 
+routine ArrayTest(x : integer)
+is
+    x := 0
+end
+
 routine test(a : integer, b : integer): real
 is
     print a
@@ -44,9 +49,28 @@ is
     end
 end
 
+routine test_record(myrec : Address)
+is
+    print myrec.isRussia
+end
+
+
+routine start_test()
+is
+    var rec : Address
+    rec.street := 1
+    rec.number := 0.56
+    rec.isRussia := true 
+    test_record(rec)
+end
+
 routine main()
 is
     var arr : TMyArray is [1, 2, 3, 4, 5]
+    x := 5
+
+    print x
+    print arr[2]
     arr[3] := 15
     for i in 1..5 loop
         print arr[i]
@@ -70,7 +94,6 @@ is
     else
         y := 200
     end
-    print y
-    print test(100, y)
+    print 10000
+    test(100, y)
 end
-

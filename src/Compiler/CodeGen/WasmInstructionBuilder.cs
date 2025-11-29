@@ -12,6 +12,7 @@ public static class WasmOpcode
     public const byte BrIf = 0x0D;
     public const byte Return = 0x0F;
     public const byte Call = 0x10;
+    public const byte Drop = 0x1A;
 
     public const byte LocalGet = 0x20;
     public const byte LocalSet = 0x21;
@@ -118,6 +119,8 @@ public class WasmInstructionBuilder
     public void Return() => _instructions.Add(WasmOpcode.Return);
     
     public void Unreachable() => _instructions.Add(WasmOpcode.Unreachable);
+    
+    public void Drop() => _instructions.Add(WasmOpcode.Drop);
 
     public void Call(int functionIndex)
     {

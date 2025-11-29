@@ -315,6 +315,14 @@ Statement
     | ForLoop
     | ReturnStatement
     | PrintStatement
+    | ExpressionStatement
+    ;
+
+ExpressionStatement
+    : Expression
+        {
+            $$ = new ExpressionStatementNode { Expression = (ExpressionNode)$1 };
+        }
     ;
 
 Assignment

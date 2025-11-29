@@ -502,6 +502,10 @@ public class SemanticAnalyzer
             case ReturnStatementNode returnStmt:
                 CheckReturnStatement(returnStmt);
                 break;
+
+            case ExpressionStatementNode exprStmt:
+                CheckExpressionStatement(exprStmt);
+                break;
         }
     }
 
@@ -571,6 +575,11 @@ public class SemanticAnalyzer
         }
 
         _symbolTable.PopScope();
+    }
+
+    private void CheckExpressionStatement(ExpressionStatementNode exprStmt)
+    {
+        DeriveType(exprStmt.Expression);
     }
 
     private void CheckReturnStatement(ReturnStatementNode returnStmt)
