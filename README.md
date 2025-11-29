@@ -272,13 +272,11 @@ All tests read code from external files in `tests/test_files/` (23 files), `test
 
 ## To-do's
 
-- [x] Implement Lexer
-- [x] Implement Parser
-- [x] Add comprehensive tests
-- [x] Implement Semantic Analyzer
-- [ ] Implement Code Generator
-- [ ] Add support for comments
-
+- [ ] Fix codegen:
+- - Fix routine's arguments:
+- - - Primitive types (should to be copies of values);
+- - - Records and arrays (just doesn't work at the moment, need to be links to the memory).
+- [ ] Test other cases
 ## Requirements
 
 - .NET 9.0 SDK or higher
