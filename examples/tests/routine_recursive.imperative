@@ -1,0 +1,48 @@
+routine factorial2(n : integer) : integer
+
+routine factorial1(n : integer) : integer
+is
+    if n <= 1 then
+        return 1
+    else
+        return n * factorial2(n - 1)
+    end
+end
+
+routine factorial2(n : integer) : integer
+is
+    if n <= 1 then
+        return 1
+    else
+        return n * factorial1(n - 1)
+    end
+end
+
+routine fibonacci(n : integer) : integer
+is
+    if n <= 1 then
+        return n
+    else
+        return fibonacci(n - 1) + fibonacci(n - 2)
+    end
+end
+
+routine power(base : integer, exp : integer) : integer
+is
+    if exp = 0 then
+        return 1
+    else
+        if exp = 1 then
+            return base
+        else
+            return base * power(base, exp - 1)
+        end
+    end
+end
+
+routine main()
+is
+    print fibonacci(10)
+    print factorial1(6)
+    print power(2, 10)
+end

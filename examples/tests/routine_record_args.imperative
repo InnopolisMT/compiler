@@ -15,16 +15,24 @@ is
     person.age := 10
 end
 
+routine print_person(person : Person)
+is
+    print person.address.street
+    print person.address.number
+    print person.address.isRussia
+    print person.age
+end
+
 routine main()
 is 
-    var myrecord : Person
-    myrecord.address.street := 10
-    myrecord.address.number := 5.14
-    myrecord.address.isRussia := true
-    myrecord.age := 19
-    test(myrecord)
-    print myrecord.address.street
-    print myrecord.address.number
-    print myrecord.address.isRussia
-    print myrecord.age
+    var per : Person
+
+    per.address.street := 10
+    per.address.number := 5.14
+    per.address.isRussia := true
+    per.age := 19
+    
+    test(per)
+
+    print_person(per)
 end

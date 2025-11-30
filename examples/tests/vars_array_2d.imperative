@@ -1,12 +1,35 @@
-type TArray is array[5] integer
-type TMatrix is array[5] TArray
+var arr_len : integer is 3
+type TArray is array[3] integer
+type TMatrix is array[3] TArray
+
+routine init_matrix(matrix : TMatrix)
+is
+    for i in 1..arr_len loop
+        for j in 1..arr_len loop
+            matrix[i][j] := i + j
+        end
+    end
+end
+
+routine print_matrix(matrix : TMatrix)
+is
+    for i in 1..arr_len loop
+        for j in 1..arr_len loop
+            print matrix[i][j]
+        end
+    end
+end
+
+routine some_changes(matrix : TMatrix)
+is
+    matrix[1][1] := 29
+end
 
 routine main()
 is
     var x : TMatrix
-    for i in 1..5 loop
-        for j in 1..5 loop
-            x[i][j] := j
-        end
-    end
+    init_matrix(x)
+    print_matrix(x)
+    some_changes(x)
+    print_matrix(x)
 end

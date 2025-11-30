@@ -1,9 +1,22 @@
 type TMyArray is array[5] integer
 
+routine power(base : integer, exp : integer) : integer
+is
+    if exp = 0 then
+        return 1
+    else
+        if exp = 1 then
+            return base
+        else
+            return base * power(base, exp - 1)
+        end
+    end
+end
+
 routine test(nums : TMyArray)
 is
     for i in 1..5 loop
-        nums[i] := nums[i] + 1
+        nums[i] := power(nums[i], 3)
     end
 end
 

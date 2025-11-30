@@ -1,0 +1,34 @@
+routine get_bool(): boolean
+is
+    return 10 < 11
+end
+
+routine func(x : boolean)
+is
+    print x
+end
+
+routine get_real(x : real): real
+is
+    var y : integer is 5
+    print x
+    return y
+end
+
+routine main()
+is
+    var x : boolean is true
+    var y : integer is 14
+    if (y < 15) then
+        x := not x
+    end
+    print x
+    y := -y
+    print y
+    x := get_bool()
+    y := get_bool()
+    print x  # true
+    print y  # 1
+    func(y)  # converts, print true
+    print get_real(5.0)
+end
