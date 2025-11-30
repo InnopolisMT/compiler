@@ -56,6 +56,9 @@ public class StatementCodeGen
             case PrintStatementNode printStmt:
                 GeneratePrint(printStmt);
                 break;
+            case ExpressionStatementNode exprStmt:
+                GenerateExpressionStatement(exprStmt);
+                break;
             default:
                 throw new InvalidOperationException($"Unknown statement type: {stmt.GetType().Name}");
         }
@@ -402,6 +405,12 @@ public class StatementCodeGen
 
         var exprType = node.Expression.Type;
         
+        // If type is not set, try to resolve it
+        if (exprType == null)
+        {
+            exprType = _exprGen.GetResolvedType(node.Expression);
+        }
+        
         // If expression is a routine call, get its return type from _functionReturnTypes
         if (node.Expression is RoutineCallNode routineCall)
         {
@@ -438,6 +447,23 @@ public class StatementCodeGen
         }
 
         _builder.Call(funcIndex);
+    }
+
+    private void GenerateExpressionStatement(ExpressionStatementNode node)
+    {
+        // Generate the expression (typically a function call)
+        _exprGen.Generate(node.Expression);
+        
+        // If the expression has a return value, drop it since we're not using it
+        if (node.Expression is RoutineCallNode call)
+        {
+            // Check if the routine has a return type
+            if (_functionReturnTypes.TryGetValue(call.RoutineName, out var returnType) && returnType != null)
+            {
+                // Drop the unused return value from the stack
+                _builder.Drop();
+            }
+        }
     }
 
     private bool IsRealType(Semantic.Type? type)

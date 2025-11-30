@@ -692,6 +692,13 @@ public class SemanticAnalyzer
     {
         if (leftType is PrimitiveType leftPrim && rightType is PrimitiveType rightPrim)
         {
+            // Division always produces real
+            if (binOp.Operator == "/" && IsNumeric(leftPrim) && IsNumeric(rightPrim))
+            {
+                binOp.Type = RealType;
+                return RealType;
+            }
+            
             if (leftPrim.Kind == PrimitiveKind.Integer && rightPrim.Kind == PrimitiveKind.Integer)
             {
                 binOp.Type = IntegerType;

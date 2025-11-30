@@ -10,6 +10,7 @@ public class LocalVariable
     public bool IsParameter { get; set; }
     public int? MemoryOffset { get; set; }
     public Semantic.Type? OriginalType { get; set; } // Store the original semantic type
+    public bool IsReference { get; set; } // True for parameters that are pointers to complex types
 }
 
 public class LocalsManager
@@ -35,17 +36,16 @@ public class LocalsManager
     {
         if (_memoryManager.IsComplexType(type))
         {
-            int size = _memoryManager.CalculateTypeSize(type);
-            int offset = _memoryManager.TotalGlobalMemorySize + _localMemoryOffset;
-            _localMemoryOffset += size;
-
+            // For complex types (arrays/records), the parameter is a pointer (i32)
+            // It doesn't allocate new memory, just holds the address passed by the caller
             _locals[name] = new LocalVariable
             {
                 Name = name,
                 Index = _nextLocalIndex++,
                 Type = WasmValueType.I32,
                 IsParameter = true,
-                MemoryOffset = offset,
+                IsReference = true, // Mark as reference parameter
+                MemoryOffset = null, // No memory offset - the i32 holds the pointer value
                 OriginalType = type
             };
         }
@@ -58,6 +58,7 @@ public class LocalsManager
                 Index = _nextLocalIndex++,
                 Type = wasmType,
                 IsParameter = true,
+                IsReference = false,
                 MemoryOffset = null,
                 OriginalType = type
             };
@@ -77,12 +78,14 @@ public class LocalsManager
             _locals[name] = new LocalVariable
             {
                 Name = name,
-                Index = _nextLocalIndex++,
+                Index = -1, // Not a WASM local, stored in memory
                 Type = WasmValueType.I32,
                 IsParameter = false,
+                IsReference = false, // Local variables are not references
                 MemoryOffset = offset,
                 OriginalType = type
             };
+            return -1; // No WASM local index for memory-backed variables
         }
         else
         {
@@ -93,12 +96,12 @@ public class LocalsManager
                 Index = _nextLocalIndex++,
                 Type = wasmType,
                 IsParameter = false,
+                IsReference = false,
                 MemoryOffset = null,
                 OriginalType = type
             };
+            return _locals[name].Index;
         }
-
-        return _locals[name].Index;
     }
 
     public LocalVariable? GetLocal(string name)
@@ -109,7 +112,7 @@ public class LocalsManager
     public List<WasmValueType> GetNonParameterLocals()
     {
         return _locals.Values
-            .Where(l => !l.IsParameter)
+            .Where(l => !l.IsParameter && !l.MemoryOffset.HasValue) // Only real WASM locals, not memory-backed variables
             .OrderBy(l => l.Index)
             .Select(l => l.Type)
             .ToList();
@@ -129,6 +132,7 @@ public class LocalsManager
             Index = _nextLocalIndex++,
             Type = type,
             IsParameter = false,
+            IsReference = false,
             MemoryOffset = null
         };
         return _locals[tempName].Index;

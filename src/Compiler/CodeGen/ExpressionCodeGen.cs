@@ -9,6 +9,8 @@ public class ExpressionCodeGen
     private readonly MemoryManager _memoryManager;
     private readonly LocalsManager _localsManager;
     private readonly Dictionary<string, int> _functionIndices;
+    private readonly Dictionary<string, RoutineDeclarationNode> _routineDeclarations;
+    private readonly ProgramNode _ast;
 
     public LocalsManager LocalsManager => _localsManager;
 
@@ -16,12 +18,16 @@ public class ExpressionCodeGen
         WasmInstructionBuilder builder,
         MemoryManager memoryManager,
         LocalsManager localsManager,
-        Dictionary<string, int> functionIndices)
+        Dictionary<string, int> functionIndices,
+        Dictionary<string, RoutineDeclarationNode> routineDeclarations,
+        ProgramNode ast)
     {
         _builder = builder;
         _memoryManager = memoryManager;
         _localsManager = localsManager;
         _functionIndices = functionIndices;
+        _routineDeclarations = routineDeclarations;
+        _ast = ast;
     }
 
     public void Generate(ExpressionNode expr)
@@ -129,7 +135,9 @@ public class ExpressionCodeGen
         Generate(node.Left);
         Generate(node.Right);
 
-        bool isReal = IsRealType(leftType) || IsRealType(rightType);
+        // Division always produces f64
+        bool isDivision = node.Operator == "/";
+        bool isReal = IsRealType(leftType) || IsRealType(rightType) || isDivision;
 
         if (isReal)
         {
@@ -352,7 +360,12 @@ public class ExpressionCodeGen
         var local = _localsManager.GetLocal(node.Name);
         if (local != null)
         {
-            if (local.MemoryOffset.HasValue)
+            if (local.IsReference)
+            {
+                // For reference parameters, the local already contains the address
+                _builder.LocalGet(local.Index);
+            }
+            else if (local.MemoryOffset.HasValue)
             {
                 _builder.I32Const(local.MemoryOffset.Value);
             }
@@ -412,9 +425,36 @@ public class ExpressionCodeGen
 
     private void GenerateRoutineCall(RoutineCallNode node)
     {
-        foreach (var arg in node.Arguments)
+        // Get routine declaration to check parameter types
+        RoutineDeclarationNode? routine = null;
+        if (_routineDeclarations.TryGetValue(node.RoutineName, out var routineDecl))
         {
-            Generate(arg);
+            routine = routineDecl;
+        }
+
+        // Generate arguments - pass complex types by reference
+        for (int i = 0; i < node.Arguments.Count; i++)
+        {
+            var arg = node.Arguments[i];
+            
+            // Check if this parameter is a complex type
+            bool shouldPassByReference = false;
+            if (routine != null && i < routine.Parameters.Count)
+            {
+                var paramType = ResolveType(routine.Parameters[i].Type);
+                shouldPassByReference = _memoryManager.IsComplexType(paramType);
+            }
+            
+            if (shouldPassByReference)
+            {
+                // Pass address for arrays and records
+                GenerateAddress(arg);
+            }
+            else
+            {
+                // Pass value for primitive types
+                Generate(arg);
+            }
         }
 
         if (!_functionIndices.TryGetValue(node.RoutineName, out int funcIndex))
@@ -482,6 +522,70 @@ public class ExpressionCodeGen
         }
 
         return expr.Type;
+    }
+
+    public Semantic.Type ResolveType(TypeNode typeNode)
+    {
+        switch (typeNode)
+        {
+            case PrimitiveTypeNode primitive:
+                return primitive.TypeName switch
+                {
+                    "integer" => new PrimitiveType(PrimitiveKind.Integer),
+                    "real" => new PrimitiveType(PrimitiveKind.Real),
+                    "boolean" => new PrimitiveType(PrimitiveKind.Boolean),
+                    _ => throw new InvalidOperationException($"Unknown primitive type: {primitive.TypeName}")
+                };
+
+            case ArrayTypeNode arrayType:
+                var elementType = ResolveType(arrayType.ElementType);
+                int size = EvaluateConstantExpression(arrayType.Size);
+                return new ArrayType(elementType, size);
+
+            case RecordTypeNode recordType:
+                var fields = new Dictionary<string, Semantic.Type>();
+                foreach (var field in recordType.Fields)
+                {
+                    fields[field.Name] = ResolveType(field.Type);
+                }
+                return new RecordType(fields);
+
+            case UserTypeNode userType:
+                var typeDecl = _ast.Declarations.OfType<TypeDeclarationNode>()
+                    .FirstOrDefault(d => d.Name == userType.TypeName);
+                if (typeDecl == null)
+                    throw new InvalidOperationException($"Type '{userType.TypeName}' not found");
+                return ResolveType(typeDecl.Type);
+
+            default:
+                throw new InvalidOperationException($"Unknown type node: {typeNode.GetType().Name}");
+        }
+    }
+
+    private int EvaluateConstantExpression(ExpressionNode expr)
+    {
+        return expr switch
+        {
+            IntegerLiteralNode intLit => (int)intLit.Value,
+            BinaryOperationNode binOp => EvaluateBinaryOperation(binOp),
+            _ => throw new InvalidOperationException($"Cannot evaluate non-constant expression: {expr.GetType().Name}")
+        };
+    }
+
+    private int EvaluateBinaryOperation(BinaryOperationNode node)
+    {
+        int left = EvaluateConstantExpression(node.Left);
+        int right = EvaluateConstantExpression(node.Right);
+
+        return node.Operator switch
+        {
+            "+" => left + right,
+            "-" => left - right,
+            "*" => left * right,
+            "/" => left / right,
+            "%" => left % right,
+            _ => throw new InvalidOperationException($"Cannot evaluate operator: {node.Operator}")
+        };
     }
 }
 

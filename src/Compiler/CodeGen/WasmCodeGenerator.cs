@@ -9,6 +9,7 @@ public class WasmCodeGenerator
     private readonly MemoryManager _memoryManager = new();
     private readonly Dictionary<string, int> _functionIndices = new();
     private readonly Dictionary<string, Semantic.Type?> _functionReturnTypes = new();
+    private readonly Dictionary<string, RoutineDeclarationNode> _routineDeclarations = new();
     private int _printIntIndex;
     private int _printRealIndex;
     private int _printBoolIndex;
@@ -95,6 +96,7 @@ public class WasmCodeGenerator
             var funcType = CreateFunctionType(routine, ast);
             int funcIndex = _module.AddFunction(routine.Name, funcType);
             _functionIndices[routine.Name] = funcIndex;
+            _routineDeclarations[routine.Name] = routine;
             
             // Store return type for later use
             if (routine.ReturnType != null)
@@ -122,7 +124,12 @@ public class WasmCodeGenerator
         foreach (var param in routine.Parameters)
         {
             var paramType = ResolveType(param.Type, ast);
-            if (!_memoryManager.IsComplexType(paramType))
+            if (_memoryManager.IsComplexType(paramType))
+            {
+                // Complex types (arrays, records) are passed by reference as i32 pointers
+                funcType.Parameters.Add(WasmValueType.I32);
+            }
+            else
             {
                 funcType.Parameters.Add(_memoryManager.GetWasmType(paramType));
             }
@@ -146,7 +153,7 @@ public class WasmCodeGenerator
 
         var localsManager = new LocalsManager(_memoryManager);
         var builder = new WasmInstructionBuilder();
-        var exprGen = new ExpressionCodeGen(builder, _memoryManager, localsManager, _functionIndices);
+        var exprGen = new ExpressionCodeGen(builder, _memoryManager, localsManager, _functionIndices, _routineDeclarations, ast);
         var stmtGen = new StatementCodeGen(builder, exprGen, _memoryManager, localsManager, _functionIndices, _functionReturnTypes);
 
         // Set the return type for proper type conversion in return statements
@@ -258,9 +265,16 @@ public class WasmCodeGenerator
                     {
                         exprGen.Generate(varDecl.InitialValue);
                         
-                        var type = ResolveType(varDecl.Type, ast);
-                        if (type is PrimitiveType pt && pt.Kind == PrimitiveKind.Real)
+                        var varType = ResolveType(varDecl.Type, ast);
+                        var exprType = varDecl.InitialValue.Type;
+                        
+                        if (varType is PrimitiveType pt && pt.Kind == PrimitiveKind.Real)
                         {
+                            // Convert integer to real if needed
+                            if (exprType is PrimitiveType exprPt && exprPt.Kind == PrimitiveKind.Integer)
+                            {
+                                builder.F64ConvertI32S();
+                            }
                             builder.F64Store();
                         }
                         else
@@ -273,8 +287,12 @@ public class WasmCodeGenerator
                 {
                     exprGen.Generate(varDecl.InitialValue);
                     
-                    var type = ResolveType(varDecl.Type, ast);
-                    if (local.Type == WasmValueType.F64 && !(type is PrimitiveType pt && pt.Kind == PrimitiveKind.Real))
+                    var varType = ResolveType(varDecl.Type, ast);
+                    var exprType = varDecl.InitialValue.Type;
+                    
+                    // Convert integer to real if needed
+                    if (local.Type == WasmValueType.F64 && 
+                        exprType is PrimitiveType exprPt && exprPt.Kind == PrimitiveKind.Integer)
                     {
                         builder.F64ConvertI32S();
                     }
