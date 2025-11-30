@@ -119,26 +119,12 @@ public class LexerClass
     private Token ParseIdentifierOrKeyword(int startLine, int startColumn)
     {
         string lexeme = "";
-        bool hasDot = false;
         bool isInvalid = false;
 
         while (_currentChar != '\0' && (char.IsLetterOrDigit(_currentChar) || _currentChar == '_'))
         {
             lexeme += _currentChar;
             Move();
-        }
-
-        while (_currentChar == '.')
-        {
-            if (LookAhead() == '.') break; // range
-            lexeme += _currentChar;
-            Move();
-            while (_currentChar != '\0' && (char.IsLetterOrDigit(_currentChar) || _currentChar == '_'))
-            {
-                lexeme += _currentChar;
-                Move();
-            }
-            hasDot = true;
         }
 
         if (_currentChar != '\0' && !char.IsWhiteSpace(_currentChar) && !IsValidStartChar())
@@ -156,11 +142,6 @@ public class LexerClass
         if (isInvalid)
         {
             return new SimpleToken(TokenType.tkInvalid, lexeme, span);
-        }
-
-        if (hasDot)
-        {
-            return new RecordAccessToken(lexeme, span);
         }
 
         if (TokenDefinitions.Keywords.TryGetValue(lexeme, out TokenType keywordType))

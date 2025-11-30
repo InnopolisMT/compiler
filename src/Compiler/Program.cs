@@ -4,6 +4,7 @@ using Compiler.AST;
 using Compiler.Optimization;
 using Compiler.Semantic;
 using Compiler.CodeGen;
+using System.Linq;
 
 namespace Compiler
 {
@@ -167,11 +168,17 @@ namespace Compiler
 
             var semanticAnalyzer = new SemanticAnalyzer();
             semanticAnalyzer.Analyze(ast);
-            if (semanticAnalyzer.HasErrors)
+            var realErrors = semanticAnalyzer.Errors.Where(e => !e.Message.StartsWith("Warning:"));
+            var warnings = semanticAnalyzer.Errors.Where(e => e.Message.StartsWith("Warning:"));
+            foreach (var w in warnings)
             {
-                foreach (var error in semanticAnalyzer.Errors)
+                Console.WriteLine(w.Format(options.FilePath));
+            }
+            if (realErrors.Any())
+            {
+                foreach (var err in realErrors)
                 {
-                    Console.WriteLine(error.Format(options.FilePath));
+                    Console.WriteLine(err.Format(options.FilePath));
                 }
                 Environment.Exit(1);
             }

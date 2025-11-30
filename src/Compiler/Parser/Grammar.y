@@ -484,22 +484,14 @@ ModifiablePrimary
                 Index = (ExpressionNode)$3
             };
         }
-    | tkRecordAccess
+    | ModifiablePrimary tkLeftBracket Expression tkRightBracket
         {
-            // Handle composite record access (e.g., person.addr.street)
-            var parts = ((string)$1).Split('.');
-            ExpressionNode current = new IdentifierNode { Name = parts[0] };
-            
-            for (int i = 1; i < parts.Length; i++)
+            // Enable chained array indexing: x[i][j]
+            $$ = new ArrayAccessNode
             {
-                current = new RecordAccessNode
-                {
-                    Record = current,
-                    FieldName = parts[i]
-                };
-            }
-            
-            $$ = current;
+                Array = (ExpressionNode)$1,
+                Index = (ExpressionNode)$3
+            };
         }
     | ModifiablePrimary tkDot tkIdentifier
         {
