@@ -1,0 +1,30 @@
+type Address is record
+    var street : integer
+    var number : real
+    var isRussia : boolean
+end
+
+type Person is record
+    var address : Address
+    var age : integer
+end
+
+routine test(person : Person)
+is
+    person.address.street := 15
+    person.age := 10
+end
+
+routine main()
+is 
+    var myrecord : Person
+    myrecord.address.street := 10
+    myrecord.address.number := 5.14
+    myrecord.address.isRussia := true
+    myrecord.age := 19
+    test(myrecord)
+    print myrecord.address.street
+    print myrecord.address.number
+    print myrecord.address.isRussia
+    print myrecord.age
+end

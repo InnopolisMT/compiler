@@ -1,0 +1,21 @@
+type Person is record
+    var addresses : array[3] integer
+    var age : integer
+end
+
+routine print_record(person : Person)
+is
+    print person.addresses[1]
+    print person.addresses[2]
+    print person.addresses[3]
+    print person.age
+end
+
+routine main()
+is
+    var per : Person
+    var addr : array[3] integer is [1, 2, 3]
+    per.addresses := addr
+    per.age := 19
+    print_record(per)
+end

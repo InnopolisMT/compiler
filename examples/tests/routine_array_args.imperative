@@ -1,0 +1,17 @@
+type TMyArray is array[5] integer
+
+routine test(nums : TMyArray)
+is
+    for i in 1..5 loop
+        nums[i] := nums[i] + 1
+    end
+end
+
+routine main()
+is 
+    var x : TMyArray is [1, 2, 3, 4, 5]
+    test(x)
+    for i in 1..5 loop
+        print x[i]
+    end
+end

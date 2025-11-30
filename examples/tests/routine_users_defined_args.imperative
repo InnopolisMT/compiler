@@ -1,0 +1,14 @@
+type TNum is integer
+
+routine test(x : TNum)
+is
+    x := 6
+    print x
+end
+
+routine main()
+is
+    var x : TNum is 5
+    test(x)
+    print x
+end

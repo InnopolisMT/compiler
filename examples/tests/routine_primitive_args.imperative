@@ -1,0 +1,12 @@
+routine test(num : integer)
+is
+    num := 6
+    print num
+end
+
+routine main()
+is
+    var x : integer is 5
+    test(x)
+    print x
+end

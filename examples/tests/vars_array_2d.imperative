@@ -1,0 +1,12 @@
+type TArray is array[5] integer
+type TMatrix is array[5] TArray
+
+routine main()
+is
+    var x : TMatrix
+    for i in 1..5 loop
+        for j in 1..5 loop
+            x[i][j] := j
+        end
+    end
+end

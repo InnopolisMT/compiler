@@ -1,0 +1,23 @@
+type Address is record
+    var street : integer
+    var number : real
+    var isRussia : boolean
+end
+
+type Person is record
+    var address : Address
+    var age : integer
+end
+
+type Persons is array[3] Person
+
+routine main()
+is
+    var arr : Persons
+
+        arr[1].address.street := 1
+        arr[1].address.number := 5.14
+        arr[1].address.isRussia := true
+        arr[1].age := 19
+
+end
