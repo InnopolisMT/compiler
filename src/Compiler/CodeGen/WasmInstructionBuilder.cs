@@ -72,6 +72,10 @@ public static class WasmOpcode
     public const byte I64ExtendI32S = 0xAC;
     public const byte F64ConvertI32S = 0xB7;
     public const byte F64ConvertI32U = 0xB8;
+
+    // Bulk memory prefix and subopcodes
+    public const byte BulkMemoryPrefix = 0xFC; // prefix for bulk memory ops
+    public const byte MemCopy = 0x0A;          // subopcode for memory.copy
 }
 
 public class WasmInstructionBuilder
@@ -225,6 +229,17 @@ public class WasmInstructionBuilder
 
     public void F64ConvertI32S() => _instructions.Add(WasmOpcode.F64ConvertI32S);
     public void I32TruncF64S() => _instructions.Add(WasmOpcode.I32TruncF64S);
+
+    // memory.copy: pops dest, src, len (i32) and copies len bytes
+    // Encoded as: 0xFC 0x0A <destMemIdx=0> <srcMemIdx=0>
+    public void MemoryCopy()
+    {
+        _instructions.Add(WasmOpcode.BulkMemoryPrefix);
+        WriteLEB128Unsigned(WasmOpcode.MemCopy);
+        // memory indices (both zero for the default linear memory)
+        WriteLEB128Unsigned(0);
+        WriteLEB128Unsigned(0);
+    }
 
     private void WriteLEB128Unsigned(uint value)
     {

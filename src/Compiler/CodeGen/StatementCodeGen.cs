@@ -87,10 +87,22 @@ public class StatementCodeGen
             }
         }
 
+        // For complex types (arrays/records) perform byte-wise copy of the entire object
+        var targetType = node.Target.Type;
+        if (targetType is ArrayType || targetType is RecordType)
+        {
+            _exprGen.GenerateAddress(node.Target);       // dest
+            _exprGen.GenerateAddress(node.Value);        // src
+            int size = _memoryManager.CalculateTypeSize(targetType);
+            _builder.I32Const(size);                     // len
+            _builder.MemoryCopy();
+            return;
+        }
+
+        // Primitive types: evaluate value and store with conversions if needed
         _exprGen.GenerateAddress(node.Target);
         _exprGen.Generate(node.Value);
 
-        var targetType = node.Target.Type;
         if (IsRealType(targetType))
         {
             if (!IsRealType(node.Value.Type))
