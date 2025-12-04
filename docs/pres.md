@@ -4,6 +4,12 @@
 Наша команда: **Tourists**  
 Участники: **Danila Khrankou & Tsimafei Kurstak**
 
+## Реализация
+Язык: **ProjectI (Imperative)**
+Язык реализации: **C#**
+Инструмент: **gppg-based parser**
+Целевая платформа: **WASM**
+
 ---
 
 ## 1. Лексический анализатор (Lexer)
@@ -41,7 +47,7 @@ private char _currentChar;         // Текущий символ
 - `SkipWhitespace()` — пропускает пробелы.
 - `IsValidStartChar()` — проверяет допустимость начального символа токена.
 
-### 1.3. Система токенов
+### 1.2. Система токенов
 
 #### Иерархия классов токенов
 
@@ -64,19 +70,7 @@ public abstract class Token(TokenType type, string lexeme, Span span)
 - **`RecordAccessToken`** — доступ к полям записей (например, `record.field.subfield`)
 - **`SimpleToken`** — ключевые слова и операторы
 
-#### Класс `Span` — информация о позиции
-```csharp
-public class Span(int line, int start, int end)
-{
-    public int Line { get; }    // Номер строки
-    public int Start { get; }   // Начальный столбец
-    public int End { get; }     // Конечный столбец
-}
-```
-
-Позволяет точно указывать, где находится токен, что критично для сообщений об ошибках.
-
-### 1.4. Определения токенов
+### 1.3. Определения токенов
 
 #### Примеры реализации
 
@@ -86,8 +80,7 @@ public enum TokenType
 {
     tkIntegerLiteral = 1,
     tkRealLiteral = 2,
-    // ... остальные типы
-    tkInvalid = 51
+    // ...
 }
 ```
 
@@ -97,25 +90,20 @@ public static readonly Dictionary<string, TokenType> Keywords = new()
 {
     {"var", TokenType.tkVar},
     {"integer", TokenType.tkIntegerKeyword},
-    // ... остальные ключевые слова
+    // ...
 };
 
 public static readonly Dictionary<string, TokenType> Operators = new()
 {
     {":=", TokenType.tkAssign},
     {"<=", TokenType.tkLessThanOrEqual},
-    // ... остальные операторы
+    // ... 
 };
 ```
 
-### 1.5. Обработка ошибок
+### 1.4. Обработка ошибок
 
-- **Невалидные числа** — если после цифр идут буквы или несколько точек
-- **Невалидные идентификаторы** — если после букв/цифр идут недопустимые символы
-- **Неизвестные символы** — любые символы, не входящие в грамматику
-- **Комментарии** — пропускаются (строки, начинающиеся с `#`)
-
-Все ошибки возвращаются как токены типа `tkInvalid` с сохранением позиции.
+Все ошибки возвращаются списком токенов типа `tkInvalid` с сохранением позиции.
 
 ---
 
@@ -123,94 +111,20 @@ public static readonly Dictionary<string, TokenType> Operators = new()
 
 ### 2.1. Общая архитектура
 
-Синтаксический анализатор построен на основе генератора парсеров **GPPG** (Gardens Point Parser Generator) версии 1.5.3.1. Это LR-парсер, который автоматически генерирует код на основе грамматики.
+Синтаксический анализатор построен на основе генератора парсеров **GPPG**
 
 Структура парсера:
 
-- **`Grammar.y`** — спецификация грамматики (714 строк)
+- **`Grammar.y`** — спецификация грамматики
 - **`LexerAdapter.cs`** — адаптер для интеграции лексера с GPPG
-- **`ParserFacade.cs`** — адаптер для удобного использования парсера
-- **`LexLocation.cs`** — класс для хранения позиции в исходном коде
+- **`ParserFacade.cs`** — адаптер для использования парсера
+- **`LexLocation.cs`** — класс для хранения позиции в исходном коде (обычно поставляется с GPLEX, но у нас особый случай)
 - **`Generated/Parser.cs`** — автоматически сгенерированный парсер
 
 
 ### 2.3. Адаптер лексера `LexerAdapter`
 
-`LexerAdapter` — это **мост** между hand-written лексером и GPPG-парсером. Он наследуется от `AbstractScanner<object, LexLocation>` из библиотеки GPPG.
-
-#### Маппинг токенов
-
-Ключевой компонент — словарь `TokenMap`, который отображает типы токенов лексера на числовые коды GPPG:
-
-```csharp
-private static readonly Dictionary<TokenType, int> TokenMap = new()
-{
-    { TokenType.tkIntegerLiteral, (int)Tokens.tkIntegerLiteral },
-    { TokenType.tkRealLiteral, (int)Tokens.tkRealLiteral },
-    // ... всего 51 маппинг
-    { TokenType.tkInvalid, (int)Tokens.tkInvalid }
-};
-```
-
-`Tokens` — это `enum`, автоматически сгенерированный GPPG на основе `%token` деклараций в `Grammar.y`.
-
-#### Метод `yylex()`
-
-Главный метод, который вызывает парсер для получения следующего токена:
-
-```csharp
-public override int yylex()
-{
-    _currentToken = _lexer.NextToken();
-
-    // Устанавливаем позицию токена
-    yylloc = new LexLocation(
-        _currentToken.Span.Line,
-        _currentToken.Span.Start,
-        _currentToken.Span.Line,
-        _currentToken.Span.End
-    );
-
-    // Пропускаем токены переноса строки
-    if (_currentToken.Type == TokenType.tkEOL)
-    {
-        return yylex();
-    }
-
-    // Извлекаем значение токена
-    yylval = GetTokenValue(_currentToken);
-
-    // Преобразуем тип токена лексера в код GPPG
-    if (TokenMap.TryGetValue(_currentToken.Type, out int parserToken))
-    {
-        return parserToken;
-    }
-
-    return (int)Tokens.error;
-}
-```
-
-
-#### Метод `GetTokenValue()`
-
-Извлекает значения из специализированных токенов:
-
-```csharp
-private object GetTokenValue(Token token)
-{
-    return token switch
-    {
-        IntegerToken intToken => intToken.Value,      // long
-        RealToken realToken => realToken.Value,       // double
-        BooleanToken boolToken => boolToken.Value,    // bool
-        IdentifierToken idToken => idToken.Name,      // string
-        RecordAccessToken recordToken => recordToken.Lexeme, // string
-        _ => token.Lexeme                             // string по умолчанию
-    };
-}
-```
-
-Эти значения становятся доступны в семантических действиях грамматики через `$1`, `$2` и т.д.
+`LexerAdapter` — это мост между hand-written лексером и GPPG-парсером. Он наследуется от `AbstractScanner<object, LexLocation>` из библиотеки GPPG
 
 ### 2.4. Класс `LexLocation`
 
@@ -234,9 +148,9 @@ public class LexLocation : QUT.Gppg.IMerge<LexLocation>
 
 Метод `Merge()` позволяет объединять позиции нескольких токенов в одну (например, для всего выражения).
 
-### 2.5. Фасад `ParserFacade`
+### 2.5. Класс `ParserFacade`
 
-Предоставляет простой API для использования парсера:
+Необходимый слой абстракции для использования 
 
 ```csharp
 public class ParserFacade
@@ -273,7 +187,7 @@ public class ParserFacade
 
 В грамматике для каждого правила указаны **семантические действия** в фигурных скобках:
 
-```yacc
+```csharp
 VariableDeclaration
     : tkVar tkIdentifier tkColon Type tkIs Expression
         {
@@ -290,23 +204,6 @@ VariableDeclaration
 - `$$` — результат данного правила
 - Создаются узлы AST (`VariableDeclarationNode`, `ExpressionNode`, и т.д.)
 
-### 2.7. Обработка ошибок
-
-При ошибке парсинга вызывается метод `yyerror`:
-
-```csharp
-public override void yyerror(string format, params object[] args)
-{
-    var message = string.Format(format, args);
-    var location = yylloc != null
-        ? $" at line {yylloc.StartLine}, column {yylloc.StartColumn}"
-        : "";
-    throw new ParseException($"Parse error{location}: {message}");
-}
-```
-
-Выбрасывается исключение `ParseException` с указанием позиции ошибки.
-
 ---
 
 ## 3. Семантический анализатор (Semantic Analyzer)
@@ -317,7 +214,7 @@ public override void yyerror(string format, params object[] args)
 
 Структура семантического анализатора:
 
-- **`SemanticAnalyzer.cs`** — основной класс анализа (1075 строк)
+- **`SemanticAnalyzer.cs`** — основной класс анализа
 - **`SymbolTable.cs`** — таблица символов с поддержкой областей видимости
 - **`Type.cs`** — система типов (примитивные, массивы, записи)
 - **`Symbol.cs`** — представление символов (переменные, типы, процедуры)
@@ -431,74 +328,15 @@ public class Scope
 
 Области образуют **иерархию**: глобальная → процедура → вложенный блок.
 
-### 3.4. Система типов
-
-#### Абстрактный класс `Type`
-
-```csharp
-public abstract class Type
-{
-    public abstract string Name { get; }
-    public abstract bool IsCompatibleWith(Type other);
-    protected abstract bool EqualsType(Type other);
-}
-```
-
-#### Типы в системе
-
-**`PrimitiveType`** — примитивные типы:
-```csharp
-public enum PrimitiveKind { Integer, Real, Boolean }
-
-public sealed class PrimitiveType : Type
-{
-    public PrimitiveKind Kind { get; }
-    
-    public override bool IsCompatibleWith(Type other)
-    {
-        // Поддержка неявного преобразования integer → real
-        // Поддержка преобразования integer ↔ boolean
-    }
-}
-```
-
-**`ArrayType`** — массивы:
-```csharp
-public sealed class ArrayType : Type
-{
-    public Type ElementType { get; }
-    public int Size { get; }
-    
-    public override bool IsCompatibleWith(Type other)
-    {
-        // Строгая совместимость: одинаковый размер и совместимые элементы
-    }
-}
-```
-
-**`RecordType`** — записи (структуры):
-```csharp
-public sealed class RecordType : Type
-{
-    private Dictionary<string, Type> _fields;
-    public IReadOnlyDictionary<string, Type> Fields { get; }
-    
-    public override bool IsCompatibleWith(Type other)
-    {
-        // Структурная совместимость: одинаковые поля и типы
-    }
-}
-```
-
-### 3.5. Символы
+### 3.4. Символы
 
 ```csharp
 public enum SymbolKind
 {
-    Variable,    // Переменная
-    Type,        // Пользовательский тип
-    Routine,     // Процедура/функция
-    Parameter    // Параметр процедуры
+    Variable,    
+    Type,        
+    Routine,     
+    Parameter    
 }
 
 public class Symbol
@@ -514,7 +352,7 @@ public class Symbol
 
 Символы хранят всю информацию об идентификаторах: тип, вид, узел объявления и область видимости.
 
-### 3.6. Ключевые семантические проверки
+### 3.5. Ключевые семантические проверки
 
 #### Проверка forward declarations
 
@@ -586,24 +424,6 @@ private void CheckAssignment(AssignmentNode assign)
 - **Статическая проверка** — для константных индексов
 - **Динамическая проверка** — для переменных индексов (генерация runtime-проверок)
 
-### 3.7. Обработка ошибок
-
-```csharp
-public class SemanticError
-{
-    public int Line { get; }
-    public int Column { get; }
-    public string Message { get; }
-    
-    public string Format(string? fileName = null)
-    {
-        return $"{fileName}:{Line}:{Column}: {Message}";
-    }
-}
-```
-
-Все семантические ошибки собираются в список, что позволяет показать пользователю сразу все проблемы, а не только первую.
-
 ---
 
 ## 4. Оптимизации
@@ -626,79 +446,310 @@ public class SemanticError
 -42             → -42
 not false       → true
 ```
+
 **Условный оператор**:
-```csharp
+```pascal
 if (false) then       →  // заменяется на тело else
     print 1
+```
 **Цикл while**:
-```csharp
+```pascal
 while (false) loop    →  // полностью удаляется
-
-#### Примеры преобразований
-
-else
-    print y
-end
-var y : boolean is true
-
-print y
 ```
 
 ## 5. Генерация исполняемого файла (WASM)
 
-### 5.1. Что генерируем
-- Собираем секции: `type`, `import`, `func`, `memory`, `global`, `export`, `code`.
-- Эмитим инструкции по AST (арифметика, логика, управление, память).
-- Все индексы согласованы по таблицам типов/функций; длины секций и числа кодируются LEB128.
+### 5.1. Общая архитектура
 
-### 5.2. Как это реализовано
-- `CodeGenerator` (Visitor) обходит оптимизированный AST и формирует сигнатуры, локальные переменные, тела функций.
-- `WasmModuleBuilder` регистрирует типы, импорты (например, `env.print`), функции, память и экспорты.
-- `WasmSerializer` пишет бинарник: магическое число/версию, затем секции по спецификации, со всеми оффсетами и индексами.
+Генератор кода преобразует оптимизированное AST в бинарный формат WebAssembly. Процесс состоит из нескольких этапов: построение структуры модуля, генерация инструкций и сериализация в бинарный формат.
 
-Мини-фрагмент сериализации секции (псевдокод):
+Структура генератора кода:
+
+- **`WasmCodeGenerator.cs`** — основной класс, координирующий процесс генерации
+- **`ExpressionCodeGen.cs`** — генерация кода для выражений
+- **`StatementCodeGen.cs`** — генерация кода для операторов
+- **`WasmModule.cs`** — представление WASM модуля в памяти
+- **`WasmBinaryWriter.cs`** — запись бинарного формата WASM
+- **`WasmInstructionBuilder.cs`** — построитель инструкций WASM
+- **`LocalsManager.cs`** — управление локальными переменными и параметрами
+- **`MemoryManager.cs`** — управление памятью (глобальные переменные, массивы, записи)
+- **`WasmTestHarness.cs`** — генерация тестового JS-кода для запуска WASM
+
+### 5.2. Основной класс `WasmCodeGenerator`
+
+Метод `Generate()` выполняет генерацию в следующем порядке:
+
+1. **Настройка импортов** — регистрация функций печати (`printInt`, `printReal`, `printBool`)
+2. **Выделение глобальной памяти** — расчёт оффсетов для глобальных переменных
+3. **Обработка процедур** — двухпроходный процесс:
+   - Первый проход: регистрация сигнатур функций
+   - Второй проход: генерация тел функций
+4. **Расчёт памяти** — определение необходимого количества страниц памяти
+5. **Экспорт памяти и функций**
+6. **Запись бинарного файла** — сериализация модуля в `.wasm` формат
+
+### 5.3. Управление памятью
+
+#### Класс `MemoryManager`
+
+Управляет размещением данных в линейной памяти WASM:
+**Стратегия размещения:**
+- Глобальные переменные размещаются в начале памяти с последовательными оффсетами
+- Локальные переменные сложных типов (массивы, записи) размещаются после глобальных
+- Примитивные локальные переменные хранятся в WASM locals (не в памяти)
+
 ```csharp
-WriteByte(0x00);           // custom (если нужно)
-WriteByte(0x01);           // type section id
-WriteVarUint(length);      // LEB128 длина секции
-WriteVarUint(typeCount);
-// ... записи типов функций: params/result → кодируются как valtype (0x7F i32, 0x7E i64, 0x7D f32, 0x7C f64)
+public class MemoryManager
+{
+    private int _globalOffset = 0;
+    private readonly Dictionary<string, MemoryLocation> _globalVariables = new();
+    
+    public void AllocateGlobalVariable(string name, Semantic.Type type)
+    {
+        int size = CalculateTypeSize(type);
+        _globalVariables[name] = new MemoryLocation
+        {
+            Offset = _globalOffset,
+            Size = size,
+            IsInMemory = true
+        };
+        _globalOffset += size;
+    }
+}
 ```
 
-### 5.3. Пример результата (WAT для наглядности)
-```wat
+**Расчёт размеров типов:**
+- Примитивные типы: `integer`/`boolean` → 4 байта, `real` → 8 байт
+- Массивы: `размер_элемента × количество_элементов`
+- Записи: сумма размеров всех полей
+
+### 5.4. Управление локальными переменными
+
+#### Класс `LocalsManager`
+
+Управляет локальными переменными и параметрами функций:
+
+```csharp
+public class LocalsManager
+{
+    private readonly Dictionary<string, LocalVariable> _locals = new();
+    private int _nextLocalIndex = 0;
+    private int _localMemoryOffset = 0;
+}
+```
+
+**Типы переменных:**
+
+1. **Параметры примитивных типов** — хранятся в WASM locals
+2. **Параметры сложных типов** — передаются по ссылке (i32 указатель)
+3. **Локальные переменные примитивных типов** — хранятся в WASM locals
+4. **Локальные переменные сложных типов** — размещаются в памяти
+
+**Методы:**
+- `AddParameter()` — регистрация параметра функции
+- `AddLocal()` — регистрация локальной переменной
+- `AllocateTemporary()` — выделение временной переменной для промежуточных вычислений
+
+### 5.5. Генерация выражений
+
+#### Класс `ExpressionCodeGen`
+
+Генерирует WASM инструкции для различных типов выражений.
+
+**Литералы:**
+- `IntegerLiteralNode` → `i32.const <значение>`
+- `RealLiteralNode` → `f64.const <значение>`
+- `BooleanLiteralNode` → `i32.const 1` или `i32.const 0`
+
+**Идентификаторы:**
+- Локальные переменные в памяти → загрузка по оффсету (`i32.load` или `f64.load`)
+- Локальные переменные в WASM locals → `local.get <индекс>`
+- Глобальные переменные → загрузка по глобальному оффсету
+
+**Особенности:**
+- Деление всегда производит вещественный результат
+- Автоматическая конвертация типов при смешанных операциях
+- Поддержка всех арифметических, логических и операций сравнения
+
+**Доступ к массивам и записям:**
+
+- **Массивы:** вычисление адреса элемента с учётом размера элемента и 1-based индексации
+- **Записи:** вычисление оффсета поля относительно начала записи
+
+**Вызовы процедур:**
+
+- Примитивные типы передаются по значению
+- Сложные типы (массивы, записи) передаются по ссылке (адрес в памяти)
+
+### 5.6. Генерация операторов
+
+#### Класс `StatementCodeGen`
+
+Генерирует WASM инструкции для операторов языка.
+
+**Присваивание:**
+
+```csharp
+private void GenerateAssignment(AssignmentNode node)
+{
+    // Для сложных типов — побайтовое копирование через memory.copy
+    if (targetType is ArrayType || targetType is RecordType)
+    {
+        GenerateAddress(node.Target);  // dest
+        GenerateAddress(node.Value);    // src
+        builder.I32Const(size);         // len
+        builder.MemoryCopy();
+    }
+    // Для примитивных типов — обычное сохранение с конвертацией
+    else
+    {
+        GenerateAddress(node.Target);
+        Generate(node.Value);
+        // Конвертация типов при необходимости
+        if (IsRealType(targetType))
+            builder.F64Store();
+        else
+            builder.I32Store();
+    }
+}
+```
+
+**Условные операторы:**
+
+```csharp
+private void GenerateIfStatement(IfStatementNode node)
+{
+    Generate(node.Condition);
+    builder.If();
+    
+    // Генерация then-ветки
+    foreach (var stmt in node.ThenBody)
+        Generate(stmt);
+    
+    if (node.ElseBody.Count > 0)
+    {
+        builder.Else();
+        // Генерация else-ветки
+        foreach (var stmt in node.ElseBody)
+            Generate(stmt);
+    }
+    
+    builder.End();
+}
+```
+
+**Циклы:**
+
+- **`while`:** использует комбинацию `block` и `loop` с условным выходом через `br_if`
+- **`for`:** инициализация переменной, проверка условия, инкремент/декремент, условный переход
+
+**Возврат из функции:**
+
+- Генерация возвращаемого значения (если есть)
+- Автоматическая конвертация типов при необходимости
+- Инструкция `return`
+
+**Печать:**
+
+Автоматический выбор функции печати в зависимости от типа:
+- `integer` → `printInt`
+- `real` → `printReal`
+- `boolean` → `printBool`
+
+### 5.7. Построение инструкций
+
+#### Класс `WasmInstructionBuilder`
+
+```csharp
+public class WasmInstructionBuilder
+{
+    private readonly List<byte> _instructions = new();
+    
+    public void I32Const(int value) { ... }
+    public void F64Const(double value) { ... }
+    public void LocalGet(int index) { ... }
+    public void LocalSet(int index) { ... }
+    public void I32Add() { ... }
+    public void F64Div() { ... }
+    // ... и т.д.
+}
+```
+
+**Особенности:**
+- Все числовые значения кодируются в LEB128
+- Поддержка всех необходимых WASM инструкций
+- Управление структурой кода (`block`, `loop`, `if`, `else`, `end`)
+
+### 5.8. Представление модуля
+
+#### Класс `WasmModule`
+
+Хранит структуру WASM модуля в памяти:
+
+```csharp
+public class WasmModule
+{
+    public List<WasmFunctionType> Types { get; set; }
+    public List<WasmImport> Imports { get; set; }
+    public List<WasmFunction> Functions { get; set; }
+    public WasmMemory Memory { get; set; }
+    public List<WasmExport> Exports { get; set; }
+}
+```
+
+**Методы:**
+- `AddType()` — добавление типа функции (с дедупликацией)
+- `AddImport()` — регистрация импортируемой функции
+- `AddFunction()` — регистрация функции модуля
+- `AddExport()` — экспорт функции или памяти
+
+### 5.9. Запись бинарного формата
+
+#### Класс `WasmBinaryWriter`
+
+Сериализует модуль в бинарный формат WASM согласно спецификации.
+
+**Структура бинарного файла:**
+
+1. **Магическое число и версия:** `0x00 0x61 0x73 0x6D` (ASCII "asm") + версия `0x01 0x00 0x00 0x00`
+2. **Секция типов (ID=1):** сигнатуры всех функций
+3. **Секция импортов (ID=2):** импортируемые функции (`env.printInt`, `env.printReal`, `env.printBool`)
+4. **Секция функций (ID=3):** индексы типов для каждой функции
+5. **Секция памяти (ID=5):** определение линейной памяти
+6. **Секция экспортов (ID=7):** экспортируемые функции и память
+7. **Секция кода (ID=10):** тела всех функций с локальными переменными и инструкциями
+
+**Кодирование:**
+- Все числа кодируются в LEB128 (Little Endian Base 128)
+- Строки кодируются как длина (LEB128) + UTF-8 байты
+- Локальные переменные сжимаются в группы одинаковых типов
+
+### 5.10. Пример результата (WAT для наглядности)
+
+```wasm
 (module
   (memory (export "memory") 1)
-  (import "env" "print" (func $print (param i32)))
+  
+  (import "env" "printInt" (func $printInt (param i32)))
+  (import "env" "printReal" (func $printReal (param f64)))
+  (import "env" "printBool" (func $printBool (param i32)))
+  
   (func $main
     (local $x i32)
     (local $y i32)
+    
     i32.const 50
     local.set $x
+    
     i32.const 1
     local.set $y
+    
     local.get $y
-    call $print
+    call $printInt
   )
+  
   (export "main" (func $main))
 )
 ```
-
-### 5.4. Как запускаем
-
-- Браузер:
-```js
-const bytes = await fetch('out.wasm').then(r => r.arrayBuffer());
-const { instance } = await WebAssembly.instantiate(bytes, {
-  env: { print: (x) => console.log(x) }
-});
-instance.exports.main();
-```
-- Node.js:
-```bash
-node -e "const fs=require('fs');(async()=>{const wasm=await WebAssembly.instantiate(fs.readFileSync('out.wasm'),{env:{print:x=>console.log(x)}}); wasm.instance.exports.main();})();"
-```
-
- 
 
 ---
